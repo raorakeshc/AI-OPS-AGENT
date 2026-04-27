@@ -151,7 +151,7 @@ class SupportAgent:
 
             # Check if the user is asking a general question (potential KB hit)
             # Questions usually start with these words or end with a '?'
-            kb_keywords = ["policy", "how", "what", "can i", "refund", "return", "shipping"]
+            kb_keywords = ["policy", "how", "can i", "refund", "return", "shipping"]
             is_kb_query = any(word in last_user_msg.lower() for word in kb_keywords) or "?" in last_user_msg
 
         # 4. THE REVISED DECISION ENGINE
@@ -180,11 +180,24 @@ class SupportAgent:
                 """
 
             # BRANCH D: Pure Greeting / ID Request
+            # BRANCH D: Pure Greeting / ID Request / General Chat
             else:
-                return f"""You are a Support Agent. ID in memory: {found_id}.
-                If they want their ID, tell them. Otherwise, ask how you can help.
-                STYLE: {feedback_str}
-                """
+                print(f"DEBUG: Branch D -> Final Fallback.")
+                
+                # If we have an ID, we force the agent to mention it so the user knows it's remembered
+                if found_id:
+                    return f"""You are a Pirate Support Agent. 
+                    CONTEXT: You currently have Order ID {found_id} active in your memory.
+                    
+                    INSTRUCTION: 
+                    1. Acknowledge the user's message.
+                    2. Mention that you are ready to help with Order {found_id}.
+                    3. Do NOT ask for an ID, as you already have it.
+                    
+                    STYLE: {feedback_str}
+                    """
+                else:
+                    return f"How can I help you today? Please provide an Order ID if you have one. STYLE: {feedback_str}"
 
         self.llm_with_tools = self.llm.bind_tools(self.tools)
         self.agent_executor = create_react_agent(
