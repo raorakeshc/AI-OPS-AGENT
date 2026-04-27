@@ -149,6 +149,11 @@ class SupportAgent:
             intent_keywords = ["status", "where", "track", "check", "update", "location"]
             is_status_query = any(word in last_user_msg.lower() for word in intent_keywords)
 
+            # Check if the user is asking a general question (potential KB hit)
+            # Questions usually start with these words or end with a '?'
+            kb_keywords = ["policy", "how", "what", "can i", "refund", "return", "shipping"]
+            is_kb_query = any(word in last_user_msg.lower() for word in kb_keywords) or "?" in last_user_msg
+
         # 4. THE REVISED DECISION ENGINE
             
             # BRANCH A: Status Request (Force Tool)
@@ -165,20 +170,19 @@ class SupportAgent:
                 STOP: Do not call any more tools."""
 
             # BRANCH C: Chat Mode (What is my ID / General Chat)
+            elif is_kb_query:
+                print(f"DEBUG: Branch C -> General Question detected. Forcing KB Search.")
+                return f"""You are a Support Agent. 
+                The user is asking a question: '{last_user_msg}'
+                
+                CRITICAL: Use the 'search_knowledge_base' tool to find the answer.
+                Do not answer from your own memory. Use the tool.
+                """
+
+            # BRANCH D: Pure Greeting / ID Request
             else:
-                print(f"DEBUG: Branch C -> General Chat / Memory Answer.")
-                # We MUST use the prefix 'FINAL ANSWER' to tell the ReAct agent to exit the loop
-                return f"""FINAL ANSWER: 
-                You are in Chat Mode. The current Order ID in memory is {found_id if found_id else 'None'}.
-                
-                If the user asked for their ID, tell them it is {found_id}.
-                If they just said hello, respond like a pirate.
-                
-                STRICT RULES:
-                1. DO NOT use the get_order_status tool.
-                2. DO NOT use the search_knowledge_base tool.
-                3. Give a text-only response now.
-                
+                return f"""You are a Support Agent. ID in memory: {found_id}.
+                If they want their ID, tell them. Otherwise, ask how you can help.
                 STYLE: {feedback_str}
                 """
 
