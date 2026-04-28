@@ -164,6 +164,14 @@ class SupportAgent:
             r"\b(what(?:'s|\s+is)?\s+my\s+order\s+id|my\s+order\s+id\??)\b",
             re.IGNORECASE
         )
+        self._escalation_intent_pattern = re.compile(
+            r"\b(escalate|escalation|complaint|supervisor|manager|raise\s+(?:a\s+)?ticket)\b",
+            re.IGNORECASE
+        )
+        self._non_receipt_pattern = re.compile(
+            r"\b(not\s+received|didn['’]?t\s+receive|not\s+delivered|missing)\b",
+            re.IGNORECASE
+        )
         
         # 1. Setup RAG Retriever
         self._setup_rag()
@@ -382,6 +390,31 @@ Knowledge base context:
             if remembered_id:
                 return f"Your current order ID is {remembered_id}."
             return "I do not have your order ID yet. Please share it (10 characters or fewer)."
+
+        is_escalation_query = bool(self._escalation_intent_pattern.search(query_text))
+        mentions_non_receipt = bool(self._non_receipt_pattern.search(query_text))
+
+        if is_escalation_query or mentions_non_receipt:
+            active_order_id = extracted_id or remembered_id
+            if not active_order_id:
+                return "Yes, I can help escalate this. Please share your order ID (10 characters or fewer)."
+
+            latest_status = get_order_status.invoke({"order_id": active_order_id})
+            latest_status_lower = str(latest_status).lower()
+
+            if "delivered" in latest_status_lower:
+                return (
+                    f"Yes — I can escalate this for Order {active_order_id}. "
+                    "Since it is marked Delivered but not received, please verify your delivery location and neighbors, "
+                    "then I will open a carrier investigation immediately. "
+                    "Priority SLA: initial response within 6 hours."
+                )
+
+            return (
+                f"Yes — I can escalate this for Order {active_order_id}. "
+                f"Current status is: {latest_status}. "
+                "I will raise a support ticket for investigation and share an update within 24 hours."
+            )
 
         is_status_query = bool(self._status_intent_pattern.search(query_text))
         is_order_question = bool(re.search(r"\b(order|package)\b", query_text, re.IGNORECASE)) and "?" in query_text
