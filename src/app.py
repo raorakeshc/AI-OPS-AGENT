@@ -6,7 +6,7 @@ from collections import Counter
 from agent import SupportAgent # Ensure your script is in src/agent.py
 
 # Page Config
-st.set_page_config(page_title="SkyBridge Logistics Support", page_icon="✈️", layout="wide")
+st.set_page_config(page_title="UBA Logistics Support", page_icon="✈️", layout="wide")
 
 st.markdown(
     """
@@ -75,10 +75,10 @@ def render_brand_header():
         """
         <div class="brand-card">
             <div style="display:flex; align-items:center;">
-                <div class="brand-logo">SB</div>
+                <div class="brand-logo">UBAL</div>
                 <div>
-                    <p class="brand-title">SkyBridge Logistics</p>
-                    <p class="brand-subtitle">Airways & Logistics Support Assistant</p>
+                    <p class="brand-title">UBA Logistics</p>
+                    <p class="brand-subtitle"> Logistics Support AI Assistant</p>
                 </div>
             </div>
         </div>
@@ -102,24 +102,71 @@ def load_orders_data():
 
 
 def render_login_page():
-    render_brand_header()
-    st.subheader("Login")
-    st.caption("Use demo credentials to access dashboard and agent.")
+    # 1. Add extra CSS specifically for the login card look
+    st.markdown("""
+        <style>
+        /* Center the login container on the screen */
+        [data-testid="stVerticalBlock"] > div:has(div.login-card) {
+            display: flex;
+            justify-content: center;
+        }
+        
+        .login-card {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            border: 1px solid #ffd60a;
+            text-align: center;
+        }
+        
+        /* Style the input labels */
+        .stTextInput label {
+            font-weight: 600 !important;
+            color: #1f2937 !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
 
-    with st.form("login_form", clear_on_submit=False):
-        username = st.text_input("Username")
-        password = st.text_input("Password", type="password")
-        submitted = st.form_submit_button("Login")
+    # 2. Use columns to constrain width (1/4 - 1/2 - 1/4)
+    _, col, _ = st.columns([1, 1.5, 1])
 
-        if submitted:
-            if username == "admin" and password == "admin123":
-                st.session_state.authenticated = True
-                st.session_state.current_page = "Dashboard"
-                st.success("Login successful. Redirecting to dashboard...")
-                st.rerun()
-            else:
-                st.error("Invalid credentials. Try admin / admin123")
+    with col:
+        # Wrap everything in a div for the CSS styling
+        #st.markdown('<div class="login-card">', unsafe_allow_html=True)
+        
+        # Brand Branding inside the card
+        st.markdown("""
+            <h1 style='text-align: center; color: #1f2937; margin-bottom: 0;'>✈️ UBAL</h1>
+            <p style='text-align: center; color: #6b7280; font-size: 0.9rem;'>Logistics Control Center</p>
+            <hr style='margin: 1rem 0; border-color: #eee;'>
+        """, unsafe_allow_html=True)
 
+        # The actual form
+        with st.form("login_form"):
+            username = st.text_input("Username", placeholder="e.g. admin")
+            password = st.text_input("Password", type="password", placeholder="••••••••")
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            
+            submitted = st.form_submit_button("Sign In", use_container_width=True)
+
+            if submitted:
+                if username == "admin" and password == "admin123":
+                    st.session_state.authenticated = True
+                    st.session_state.current_page = "Dashboard"
+                    st.rerun()
+                else:
+                    st.error("Invalid credentials")
+        
+        # Helpful links below the form
+        st.markdown("""
+            <p style='font-size: 0.8rem; color: #9ca3af; margin-top: 1rem;'>
+                Forgot password? Contact <a href='mailto:it@ubalogistics.com' style='color: #ffb703;'>IT Support</a>
+            </p>
+        """, unsafe_allow_html=True)
+        
+        st.markdown('</div>', unsafe_allow_html=True)
 
 def render_dashboard_page():
     render_brand_header()
@@ -180,6 +227,33 @@ def render_dashboard_page():
         st.dataframe(rows, use_container_width=True)
     else:
         st.info("No orders match selected status.")
+
+def render_footer():
+    st.markdown(
+        """
+        <style>
+        .footer {
+            position: fixed;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            background-color: rgba(255, 255, 255, 0.9);
+            color: #1f2937;
+            text-align: center;
+            padding: 10px;
+            font-size: 12px;
+            border-top: 1px solid rgba(255, 214, 10, 0.5);
+            backdrop-filter: blur(5px);
+            z-index: 999;
+        }
+        </style>
+        <div class="footer">
+            <p><b>© 2026 UBA Logistics (UBAL)</b> | Global Operations Headquarters | 
+            Support: support@ubalogistics.com | Terms of Service | Privacy Policy</p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 
 def render_agent_page():
@@ -258,3 +332,7 @@ if st.session_state.authenticated:
         render_agent_page()
 else:
     render_login_page()
+
+# CALL FOOTER HERE
+render_footer()
+
