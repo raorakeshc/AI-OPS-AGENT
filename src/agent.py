@@ -375,21 +375,30 @@ Knowledge base context:
         if extracted_id:
             self._thread_order_ids[thread_id] = extracted_id
 
-        is_status_query = bool(self._status_intent_pattern.search(query_text))
         remembered_id = self._thread_order_ids.get(thread_id)
+        is_recall_query = self._is_order_id_recall_query(query_text)
 
-        if is_status_query:
+        if is_recall_query:
+            if remembered_id:
+                return f"Your current order ID is {remembered_id}."
+            return "I do not have your order ID yet. Please share it (10 characters or fewer)."
+
+        is_status_query = bool(self._status_intent_pattern.search(query_text))
+        is_order_question = bool(re.search(r"\b(order|package)\b", query_text, re.IGNORECASE)) and "?" in query_text
+        is_order_status_like_query = is_status_query or is_order_question
+
+        is_kb_query = bool(self._kb_intent_pattern.search(query_text)) or "?" in query_text
+
+        if extracted_id and not is_order_status_like_query and not is_kb_query:
+            return f"Thanks — I have saved Order ID {extracted_id}. Ask me to check its status anytime."
+
+        if is_order_status_like_query:
             active_order_id = extracted_id or remembered_id
             if not active_order_id:
                 return "Please share your order ID (10 characters or fewer), and I will check the status for you."
 
             tool_result = get_order_status.invoke({"order_id": active_order_id})
             return f"Order {active_order_id} status: {tool_result}"
-
-        if self._is_order_id_recall_query(query_text):
-            if remembered_id:
-                return f"Your current order ID is {remembered_id}."
-            return "I do not have your order ID yet. Please share it (10 characters or fewer)."
         
         start_time = time.time()
         try:
