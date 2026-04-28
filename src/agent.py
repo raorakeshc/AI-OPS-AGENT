@@ -93,6 +93,10 @@ class SupportAgent:
             r"\b(policy|refund|return|shipping|faq|how|can\s+i|what|why|when)\b",
             re.IGNORECASE
         )
+        self._order_id_recall_pattern = re.compile(
+            r"\b(what(?:'s|\s+is)?\s+my\s+order\s+id|my\s+order\s+id\??)\b",
+            re.IGNORECASE
+        )
         
         # 1. Setup RAG Retriever
         self._setup_rag()
@@ -240,6 +244,13 @@ INTENT FLAGS:
             ])
         return str(content)
 
+    def _extract_order_id_from_query(self, query_text: str):
+        match = self._order_id_pattern.search(query_text)
+        return match.group(0) if match else None
+
+    def _is_order_id_recall_query(self, query_text: str) -> bool:
+        return bool(self._order_id_recall_pattern.search(query_text))
+
     def _safe_single_pass_response(self, query: str, thread_id: str) -> str:
         query_text = str(query or "")
         feedback_str = self.feedback_manager.get_feedback_string()
@@ -292,9 +303,16 @@ Knowledge base context:
        # We pass the dynamic prompt as a System Message every time to ensure it's fresh
         inputs = {"messages": [("user", query)]}
 
-        query_id_match = self._order_id_pattern.search(str(query or ""))
-        if query_id_match:
-            self._thread_order_ids[thread_id] = query_id_match.group(0)
+        query_text = str(query or "")
+        extracted_id = self._extract_order_id_from_query(query_text)
+        if extracted_id:
+            self._thread_order_ids[thread_id] = extracted_id
+
+        if self._is_order_id_recall_query(query_text):
+            remembered_id = self._thread_order_ids.get(thread_id)
+            if remembered_id:
+                return f"Your current order ID is {remembered_id}."
+            return "I do not have your order ID yet. Please share it (10 characters or fewer)."
         
         start_time = time.time()
         try:
