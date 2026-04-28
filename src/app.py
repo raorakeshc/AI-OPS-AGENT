@@ -273,7 +273,7 @@ def render_agent_page():
         st.session_state.messages = []
 
     with st.sidebar:
-        st.markdown("### ✈️ SkyBridge Control Panel")
+        st.markdown("### ✈️ UBA Control Panel")
         st.caption("Manage conversation, feedback, and agent behavior")
 
         st.markdown("---")
