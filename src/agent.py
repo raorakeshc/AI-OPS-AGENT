@@ -66,6 +66,8 @@ def get_order_status(order_id: str) -> str:
       2) Query style base URL: https://.../orders/status
     - ORDER_STATUS_TIMEOUT (optional): Timeout in seconds, default=8.
     """
+    order_id = str(order_id).strip()
+
     if len(order_id) > 10:
         return "Error: Invalid tool usage. order_id is too long. It must be 10 characters or fewer."
 
