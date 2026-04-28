@@ -10,7 +10,8 @@ from pydantic import BaseModel, Field
 
 APP_TITLE = "Orders Service"
 APP_VERSION = "1.0.0"
-DATA_PATH = Path("data/orders.json")
+BASE_DIR = Path(__file__).resolve().parent.parent
+DATA_PATH = BASE_DIR / "data" / "orders.json"
 
 app = FastAPI(title=APP_TITLE, version=APP_VERSION)
 _data_lock = Lock()
@@ -44,6 +45,10 @@ def _save_orders(orders: Dict[str, str]) -> None:
     DATA_PATH.parent.mkdir(parents=True, exist_ok=True)
     with DATA_PATH.open("w", encoding="utf-8") as file_obj:
         json.dump(orders, file_obj, indent=2)
+
+
+def _normalize_order_id(order_id: str) -> str:
+    return str(order_id).strip()
 
 
 def _validate_bearer(authorization: Optional[str]) -> None:
@@ -81,15 +86,16 @@ def get_order_by_path(
     authorization: Optional[str] = Header(default=None),
 ) -> OrderStatusResponse:
     _validate_bearer(authorization)
+    normalized_order_id = _normalize_order_id(order_id)
 
     with _data_lock:
         orders = _load_orders()
 
-    status = orders.get(order_id)
+    status = orders.get(normalized_order_id)
     if not status:
-        raise HTTPException(status_code=404, detail=f"Order {order_id} not found")
+        raise HTTPException(status_code=404, detail=f"Order {normalized_order_id} not found")
 
-    return OrderStatusResponse(order_id=order_id, status=status)
+    return OrderStatusResponse(order_id=normalized_order_id, status=status)
 
 
 @app.get("/orders/status", response_model=OrderStatusResponse)
@@ -98,15 +104,16 @@ def get_order_by_query(
     authorization: Optional[str] = Header(default=None),
 ) -> OrderStatusResponse:
     _validate_bearer(authorization)
+    normalized_order_id = _normalize_order_id(order_id)
 
     with _data_lock:
         orders = _load_orders()
 
-    status = orders.get(order_id)
+    status = orders.get(normalized_order_id)
     if not status:
-        raise HTTPException(status_code=404, detail=f"Order {order_id} not found")
+        raise HTTPException(status_code=404, detail=f"Order {normalized_order_id} not found")
 
-    return OrderStatusResponse(order_id=order_id, status=status)
+    return OrderStatusResponse(order_id=normalized_order_id, status=status)
 
 
 @app.post("/orders", response_model=OrderStatusResponse)
@@ -115,13 +122,14 @@ def create_or_upsert_order(
     authorization: Optional[str] = Header(default=None),
 ) -> OrderStatusResponse:
     _validate_bearer(authorization)
+    normalized_order_id = _normalize_order_id(payload.order_id)
 
     with _data_lock:
         orders = _load_orders()
-        orders[payload.order_id] = payload.status
+        orders[normalized_order_id] = payload.status
         _save_orders(orders)
 
-    return OrderStatusResponse(order_id=payload.order_id, status=payload.status)
+    return OrderStatusResponse(order_id=normalized_order_id, status=payload.status)
 
 
 @app.patch("/orders/{order_id}", response_model=OrderStatusResponse)
@@ -131,18 +139,20 @@ def update_order_status(
     authorization: Optional[str] = Header(default=None),
 ) -> OrderStatusResponse:
     _validate_bearer(authorization)
+    normalized_path_order_id = _normalize_order_id(order_id)
+    normalized_payload_order_id = _normalize_order_id(payload.order_id)
 
-    if order_id != payload.order_id:
+    if normalized_path_order_id != normalized_payload_order_id:
         raise HTTPException(status_code=400, detail="Path order_id and payload order_id must match")
 
     with _data_lock:
         orders = _load_orders()
-        if order_id not in orders:
-            raise HTTPException(status_code=404, detail=f"Order {order_id} not found")
-        orders[order_id] = payload.status
+        if normalized_path_order_id not in orders:
+            raise HTTPException(status_code=404, detail=f"Order {normalized_path_order_id} not found")
+        orders[normalized_path_order_id] = payload.status
         _save_orders(orders)
 
-    return OrderStatusResponse(order_id=order_id, status=payload.status)
+    return OrderStatusResponse(order_id=normalized_path_order_id, status=payload.status)
 
 
 if __name__ == "__main__":
