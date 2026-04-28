@@ -82,6 +82,17 @@ class SupportAgent:
         )
         
         self.feedback_manager = FeedbackManager()
+        self._thread_order_ids = {}
+
+        self._order_id_pattern = re.compile(r"\b\d{3,10}\b")
+        self._status_intent_pattern = re.compile(
+            r"\b(status|where|track(?:ing)?|check|update|location|eta|delivered|shipped)\b",
+            re.IGNORECASE
+        )
+        self._kb_intent_pattern = re.compile(
+            r"\b(policy|refund|return|shipping|faq|how|can\s+i|what|why|when)\b",
+            re.IGNORECASE
+        )
         
         # 1. Setup RAG Retriever
         self._setup_rag()
@@ -102,16 +113,6 @@ class SupportAgent:
         #feedback_str = self.feedback_manager.get_feedback_string()
 
         # Inside SupportAgent.__init__
-
-        order_id_pattern = re.compile(r"\b\d{3,10}\b")
-        status_intent_pattern = re.compile(
-            r"\b(status|where|track(?:ing)?|check|update|location|eta|delivered|shipped)\b",
-            re.IGNORECASE
-        )
-        kb_intent_pattern = re.compile(
-            r"\b(policy|refund|return|shipping|faq|how|can\s+i|what|why|when)\b",
-            re.IGNORECASE
-        )
 
         def _to_text(content) -> str:
             if isinstance(content, str):
@@ -142,13 +143,13 @@ class SupportAgent:
             return -1
 
         def _extract_active_order_id(messages, latest_user_text: str):
-            current_match = order_id_pattern.search(latest_user_text)
+            current_match = self._order_id_pattern.search(latest_user_text)
             if current_match:
                 return current_match.group(0)
 
             for message in reversed(messages):
                 text = _to_text(getattr(message, "content", ""))
-                history_match = order_id_pattern.search(text)
+                history_match = self._order_id_pattern.search(text)
                 if history_match:
                     return history_match.group(0)
             return None
@@ -168,8 +169,8 @@ class SupportAgent:
             last_tool_index = _latest_index(messages, _is_tool_message)
             no_new_user_since_tool = last_tool_index > last_human_index
 
-            is_status_query = bool(status_intent_pattern.search(latest_user_text))
-            is_kb_query = bool(kb_intent_pattern.search(latest_user_text)) or "?" in latest_user_text
+            is_status_query = bool(self._status_intent_pattern.search(latest_user_text))
+            is_kb_query = bool(self._kb_intent_pattern.search(latest_user_text)) or "?" in latest_user_text
 
             style_block = feedback_str if feedback_str else ""
             active_order_line = active_order_id if active_order_id else "None"
@@ -228,11 +229,72 @@ INTENT FLAGS:
             logging.error(f"Failed to setup RAG Tool: {e}")
             self.retriever = None
 
+    def _content_to_text(self, content) -> str:
+        if isinstance(content, str):
+            return content
+        if isinstance(content, list):
+            return "".join([
+                item.get("text", "")
+                for item in content
+                if isinstance(item, dict) and "text" in item
+            ])
+        return str(content)
+
+    def _safe_single_pass_response(self, query: str, thread_id: str) -> str:
+        query_text = str(query or "")
+        feedback_str = self.feedback_manager.get_feedback_string()
+
+        current_id_match = self._order_id_pattern.search(query_text)
+        if current_id_match:
+            self._thread_order_ids[thread_id] = current_id_match.group(0)
+
+        active_order_id = self._thread_order_ids.get(thread_id)
+        is_status_query = bool(self._status_intent_pattern.search(query_text))
+        is_kb_query = bool(self._kb_intent_pattern.search(query_text)) or "?" in query_text
+
+        if is_status_query:
+            if not active_order_id:
+                return "Please share your order ID (10 characters or fewer), and I will check the status for you."
+
+            tool_result = get_order_status.invoke({"order_id": active_order_id})
+            return f"Order {active_order_id} status: {tool_result}"
+
+        if is_kb_query:
+            if not getattr(self, "retriever", None):
+                return "Knowledge base is currently unavailable. Please try again shortly."
+
+            docs = self.retriever.invoke(query_text)
+            kb_context = "\n\n".join(doc.page_content for doc in docs) if docs else ""
+            if not kb_context.strip():
+                return "I could not find a relevant policy entry. Please rephrase your question."
+
+            synthesis_prompt = f"""
+You are a customer support agent. Answer only from the provided knowledge base context.
+If the answer is not present, clearly say you cannot find it in the KB.
+
+User question: {query_text}
+
+Knowledge base context:
+{kb_context}
+
+{feedback_str}
+""".strip()
+            llm_result = self.llm.invoke(synthesis_prompt)
+            return self._content_to_text(llm_result.content)
+
+        if active_order_id:
+            return f"I can help with your request. I still have Order {active_order_id} in context if you want me to check its status."
+        return "How can I help you today? If you have an order issue, share your order ID (10 characters or fewer)."
+
     def ask(self, query: str, thread_id: str = "default_thread"):
         # Add recursion_limit to prevent infinite tool loops
-        config = {"configurable": {"thread_id": thread_id}, "recursion_limit": 15}
+        config = {"configurable": {"thread_id": thread_id}, "recursion_limit": 10}
        # We pass the dynamic prompt as a System Message every time to ensure it's fresh
         inputs = {"messages": [("user", query)]}
+
+        query_id_match = self._order_id_pattern.search(str(query or ""))
+        if query_id_match:
+            self._thread_order_ids[thread_id] = query_id_match.group(0)
         
         start_time = time.time()
         try:
@@ -241,13 +303,13 @@ INTENT FLAGS:
             logging.info(f"Query processed. Thread: {thread_id}, Latency: {latency:.2f}s")
             
             last_message = response["messages"][-1]
-            content = last_message.content
-            if isinstance(content, list):
-                return "".join([item.get("text", "") for item in content if isinstance(item, dict) and "text" in item])
-            return content
+            return self._content_to_text(last_message.content)
         except Exception as e:
             latency = time.time() - start_time
             logging.error(f"Error processing query. Thread: {thread_id}, Error: {str(e)}, Latency: {latency:.2f}s")
+            if "recursion" in str(e).lower() and "limit" in str(e).lower():
+                logging.warning(f"Recursion limit reached. Using single-pass fallback. Thread: {thread_id}")
+                return self._safe_single_pass_response(query=query, thread_id=thread_id)
             return "I apologize, but I am currently experiencing technical difficulties. Please try again later."
 
 if __name__ == "__main__":
