@@ -135,6 +135,12 @@ class SupportAgent:
                     return _to_text(message.content)
             return ""
 
+        def _latest_index(messages, predicate) -> int:
+            for idx in range(len(messages) - 1, -1, -1):
+                if predicate(messages[idx]):
+                    return idx
+            return -1
+
         def _extract_active_order_id(messages, latest_user_text: str):
             current_match = order_id_pattern.search(latest_user_text)
             if current_match:
@@ -158,6 +164,10 @@ class SupportAgent:
             last_message = messages[-1] if messages else None
             is_last_tool_message = _is_tool_message(last_message) if last_message else False
 
+            last_human_index = _latest_index(messages, lambda m: isinstance(m, HumanMessage))
+            last_tool_index = _latest_index(messages, _is_tool_message)
+            no_new_user_since_tool = last_tool_index > last_human_index
+
             is_status_query = bool(status_intent_pattern.search(latest_user_text))
             is_kb_query = bool(kb_intent_pattern.search(latest_user_text)) or "?" in latest_user_text
 
@@ -173,6 +183,7 @@ CONTEXT:
 - Latest state message came from tool: {is_last_tool_message}
 
 POLICY:
+0) CRITICAL STOP GUARD: If no_new_user_since_tool=True, DO NOT call any tool. Return a final user-facing answer using the latest tool result.
 1) If the latest state message is from a tool, summarize that tool result for the user in plain language and do not call another tool unless the user asked a separate new question.
 2) If the user asks about order tracking/status and an active order id exists, call get_order_status(order_id=<active_order_id>).
 3) If the user asks about policy/FAQ/refund/return/shipping, call search_knowledge_base before answering.
@@ -183,6 +194,7 @@ POLICY:
 INTENT FLAGS:
 - status_query={is_status_query}
 - kb_query={is_kb_query}
+- no_new_user_since_tool={no_new_user_since_tool}
 
 {style_block}
 """.strip()
