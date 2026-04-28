@@ -375,8 +375,18 @@ Knowledge base context:
         if extracted_id:
             self._thread_order_ids[thread_id] = extracted_id
 
+        is_status_query = bool(self._status_intent_pattern.search(query_text))
+        remembered_id = self._thread_order_ids.get(thread_id)
+
+        if is_status_query:
+            active_order_id = extracted_id or remembered_id
+            if not active_order_id:
+                return "Please share your order ID (10 characters or fewer), and I will check the status for you."
+
+            tool_result = get_order_status.invoke({"order_id": active_order_id})
+            return f"Order {active_order_id} status: {tool_result}"
+
         if self._is_order_id_recall_query(query_text):
-            remembered_id = self._thread_order_ids.get(thread_id)
             if remembered_id:
                 return f"Your current order ID is {remembered_id}."
             return "I do not have your order ID yet. Please share it (10 characters or fewer)."
