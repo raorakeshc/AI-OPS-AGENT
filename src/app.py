@@ -102,54 +102,60 @@ def load_orders_data():
 
 
 def render_login_page():
-    # 1. Add extra CSS specifically for the login card look
     st.markdown("""
         <style>
-        /* Center the login container on the screen */
+        /* Center the login container */
         [data-testid="stVerticalBlock"] > div:has(div.login-card) {
             display: flex;
             justify-content: center;
+            padding-top: 5rem;
         }
         
         .login-card {
-            background: rgba(255, 255, 255, 0.95);
-            padding: 2rem;
-            border-radius: 20px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-            border: 1px solid #ffd60a;
+            background: rgba(255, 255, 255, 1.0); /* Solid white for maximum brightness */
+            padding: 3rem;
+            border-radius: 24px;
+            /* Stronger shadow with a hint of brand gold */
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2), 0 0 15px rgba(255, 214, 10, 0.3);
+            border: 2px solid #ffd60a;
             text-align: center;
+            transition: transform 0.3s ease;
         }
         
-        /* Style the input labels */
+        /* Make input boxes cleaner */
+        .stTextInput input {
+            background-color: #f9fafb !important;
+            border: 1px solid #e5e7eb !important;
+            border-radius: 10px !important;
+            padding: 12px !important;
+        }
+
         .stTextInput label {
-            font-weight: 600 !important;
-            color: #1f2937 !important;
+            font-weight: 700 !important;
+            color: #111827 !important;
+            font-size: 1rem !important;
         }
         </style>
     """, unsafe_allow_html=True)
 
-    # 2. Use columns to constrain width (1/4 - 1/2 - 1/4)
-    _, col, _ = st.columns([1, 1.5, 1])
+    # Use slightly tighter columns to make the card feel sturdy
+    _, col, _ = st.columns([1.2, 1.4, 1.2])
 
     with col:
-        # Wrap everything in a div for the CSS styling
-        #st.markdown('<div class="login-card">', unsafe_allow_html=True)
-        
-        # Brand Branding inside the card
+        # Brand Branding inside the card - Elevated Look
         st.markdown("""
-            <h1 style='text-align: center; color: #1f2937; margin-bottom: 0;'>✈️ UBAL</h1>
-            <p style='text-align: center; color: #6b7280; font-size: 0.9rem;'>Logistics Control Center</p>
-            <hr style='margin: 1rem 0; border-color: #eee;'>
+            <h1 style='text-align: center; color: #1f2937; margin-bottom: 0; font-weight: 800;'><span style="font-size: 24px;">✈️</span>UBA Logistics</h1>
+            <p style='text-align: center; color: #4b5563; font-size: 1rem; margin-top: 5px;'>Secure Agent Gateway</p>
+            <hr style='margin: 1.5rem 0; border-color: #f3f4f6;'>
         """, unsafe_allow_html=True)
 
-        # The actual form
-        with st.form("login_form"):
-            username = st.text_input("Username", placeholder="e.g. admin")
+        with st.form("login_form", clear_on_submit=False):
+            username = st.text_input("Username", placeholder="Enter your ID")
             password = st.text_input("Password", type="password", placeholder="••••••••")
             
-            st.markdown("<br>", unsafe_allow_html=True)
+            st.markdown("<div style='padding: 10px;'></div>", unsafe_allow_html=True)
             
-            submitted = st.form_submit_button("Sign In", use_container_width=True)
+            submitted = st.form_submit_button("Sign In to UBAL", use_container_width=True)
 
             if submitted:
                 if username == "admin" and password == "admin123":
@@ -159,10 +165,9 @@ def render_login_page():
                 else:
                     st.error("Invalid credentials")
         
-        # Helpful links below the form
         st.markdown("""
-            <p style='font-size: 0.8rem; color: #9ca3af; margin-top: 1rem;'>
-                Forgot password? Contact <a href='mailto:it@ubalogistics.com' style='color: #ffb703;'>IT Support</a>
+            <p style='font-size: 0.85rem; color: #6b7280; margin-top: 1.5rem;'>
+                Need help? <a href='mailto:it@ubalogistics.com' style='color: #d97706; font-weight: 600; text-decoration: none;'>Contact System Admin</a>
             </p>
         """, unsafe_allow_html=True)
         
