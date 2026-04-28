@@ -102,102 +102,90 @@ class SupportAgent:
         #feedback_str = self.feedback_manager.get_feedback_string()
 
         # Inside SupportAgent.__init__
-        
+
+        order_id_pattern = re.compile(r"\b\d{3,10}\b")
+        status_intent_pattern = re.compile(
+            r"\b(status|where|track(?:ing)?|check|update|location|eta|delivered|shipped)\b",
+            re.IGNORECASE
+        )
+        kb_intent_pattern = re.compile(
+            r"\b(policy|refund|return|shipping|faq|how|can\s+i|what|why|when)\b",
+            re.IGNORECASE
+        )
+
+        def _to_text(content) -> str:
+            if isinstance(content, str):
+                return content
+            if isinstance(content, list):
+                parts = []
+                for item in content:
+                    if isinstance(item, dict) and "text" in item:
+                        parts.append(str(item["text"]))
+                    else:
+                        parts.append(str(item))
+                return " ".join(parts)
+            return str(content)
+
+        def _is_tool_message(message) -> bool:
+            return isinstance(message, ToolMessage) or getattr(message, "type", None) == "tool"
+
+        def _latest_human_text(messages) -> str:
+            for message in reversed(messages):
+                if isinstance(message, HumanMessage):
+                    return _to_text(message.content)
+            return ""
+
+        def _extract_active_order_id(messages, latest_user_text: str):
+            current_match = order_id_pattern.search(latest_user_text)
+            if current_match:
+                return current_match.group(0)
+
+            for message in reversed(messages):
+                text = _to_text(getattr(message, "content", ""))
+                history_match = order_id_pattern.search(text)
+                if history_match:
+                    return history_match.group(0)
+            return None
+
         # Define the Dynamic Prompt Function
         def dynamic_prompt(state) -> str:
-            print("\n--- DEBUG: DYNAMIC PROMPT START ---")
             messages = state.get("messages", [])
             feedback_str = self.feedback_manager.get_feedback_string()
-            
-            import re
-            from langchain_core.messages import ToolMessage, HumanMessage
 
-            # 1. FIND THE ID (Priority: Current Message -> Then History)
-            found_id = None
-            
-            # Check the latest user message first
-            last_user_msg = next((m.content for m in reversed(messages) if isinstance(m, HumanMessage)), "")
-            current_match = re.search(r'\b\d{3,10}\b', str(last_user_msg))
-            
-            if current_match:
-                found_id = current_match.group()
-                print(f"DEBUG: Found NEW ID in latest message: {found_id}")
-            else:
-                # Fallback: Look through history if the current message is empty of IDs
-                for m in reversed(messages[:-1]): # Look at everything EXCEPT the current message
-                    history_match = re.search(r'\b\d{3,10}\b', str(m.content))
-                    if history_match:
-                        found_id = history_match.group()
-                        print(f"DEBUG: No new ID found. Using ID from memory: {found_id}")
-                        break
+            latest_user_text = _latest_human_text(messages)
+            active_order_id = _extract_active_order_id(messages, latest_user_text)
 
-            # 2. CHECK TOOL STATUS FOR THIS SPECIFIC TURN
-            # We only care if the tool was called RECENTLY (the last 2 messages)
-            # This prevents using old "Shipped" status for a brand new ID
-            last_status = None
-            if len(messages) > 0:
-                for m in reversed(messages[-2:]): # Only look at the immediate previous exchange
-                    if isinstance(m, ToolMessage) or getattr(m, 'type', None) == 'tool':
-                        last_status = m.content
-                        break
+            last_message = messages[-1] if messages else None
+            is_last_tool_message = _is_tool_message(last_message) if last_message else False
 
-            is_last_msg_tool = False
-            if messages:
-                is_last_msg_tool = isinstance(messages[-1], ToolMessage) or getattr(messages[-1], 'type', None) == 'tool'
+            is_status_query = bool(status_intent_pattern.search(latest_user_text))
+            is_kb_query = bool(kb_intent_pattern.search(latest_user_text)) or "?" in latest_user_text
 
-            # 3. INTENT DETECTION (NEW)
-            intent_keywords = ["status", "where", "track", "check", "update", "location"]
-            is_status_query = any(word in last_user_msg.lower() for word in intent_keywords)
+            style_block = feedback_str if feedback_str else ""
+            active_order_line = active_order_id if active_order_id else "None"
 
-            # Check if the user is asking a general question (potential KB hit)
-            # Questions usually start with these words or end with a '?'
-            kb_keywords = ["policy", "how", "can i", "refund", "return", "shipping"]
-            is_kb_query = any(word in last_user_msg.lower() for word in kb_keywords) or "?" in last_user_msg
+            return f"""
+You are a customer support agent. Follow the policy below strictly.
 
-        # 4. THE REVISED DECISION ENGINE
-            
-            # BRANCH A: Status Request (Force Tool)
-            # Only trigger if the user explicitly asked for a status/where/check
-            if found_id and is_status_query and not is_last_msg_tool:
-                print(f"DEBUG: Branch A -> Executing Tool Call.")
-                return f"TOOL_COMMAND: Call get_order_status(order_id='{found_id}')."
+CONTEXT:
+- Latest user message: {latest_user_text or "<empty>"}
+- Active order id from conversation memory: {active_order_line}
+- Latest state message came from tool: {is_last_tool_message}
 
-            # BRANCH B: Reporting Result (Just after tool call)
-            elif is_last_msg_tool:
-                print(f"DEBUG: Branch B -> Reporting result.")
-                return f"""FINAL ANSWER: The status of order {found_id} is {last_status}.
-                STYLE: {feedback_str}
-                STOP: Do not call any more tools."""
+POLICY:
+1) If the latest state message is from a tool, summarize that tool result for the user in plain language and do not call another tool unless the user asked a separate new question.
+2) If the user asks about order tracking/status and an active order id exists, call get_order_status(order_id=<active_order_id>).
+3) If the user asks about policy/FAQ/refund/return/shipping, call search_knowledge_base before answering.
+4) If status is requested but no order id is known, ask for the order id (10 characters or fewer).
+5) For greetings or general chat, respond naturally. If an active order id exists, mention that you can help with that order.
+6) Keep responses concise, accurate, and professional.
 
-            # BRANCH C: Chat Mode (What is my ID / General Chat)
-            elif is_kb_query:
-                print(f"DEBUG: Branch C -> General Question detected. Forcing KB Search.")
-                return f"""You are a Support Agent. 
-                The user is asking a question: '{last_user_msg}'
-                
-                CRITICAL: Use the 'search_knowledge_base' tool to find the answer.
-                Do not answer from your own memory. Use the tool.
-                """
+INTENT FLAGS:
+- status_query={is_status_query}
+- kb_query={is_kb_query}
 
-            # BRANCH D: Pure Greeting / ID Request
-            # BRANCH D: Pure Greeting / ID Request / General Chat
-            else:
-                print(f"DEBUG: Branch D -> Final Fallback.")
-                
-                # If we have an ID, we force the agent to mention it so the user knows it's remembered
-                if found_id:
-                    return f"""You are a Pirate Support Agent. 
-                    CONTEXT: You currently have Order ID {found_id} active in your memory.
-                    
-                    INSTRUCTION: 
-                    1. Acknowledge the user's message.
-                    2. Mention that you are ready to help with Order {found_id}.
-                    3. Do NOT ask for an ID, as you already have it.
-                    
-                    STYLE: {feedback_str}
-                    """
-                else:
-                    return f"How can I help you today? Please provide an Order ID if you have one. STYLE: {feedback_str}"
+{style_block}
+""".strip()
 
         self.llm_with_tools = self.llm.bind_tools(self.tools)
         self.agent_executor = create_react_agent(
