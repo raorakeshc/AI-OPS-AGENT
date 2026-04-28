@@ -1,9 +1,163 @@
-REFUND POLICY 2026:
-- Standard items: 30-day return window from the date of delivery.
-- Electronics: 15-day return window. 15% restocking fee applies.
-- Final Sale: No returns or refunds allowed.
-- Process: Refunds are issued to the original payment method within 5-7 business days.
+AI-OPS STORE SUPPORT KNOWLEDGE BASE (SIMULATION)
+Last Updated: 2026-04-01
 
-ORDER TRACKING:
-- Tracking numbers are sent via email once the status changes to "Shipped".
-- Status "In Transit" means the package is with the carrier.
+=================================================================
+1) ORDER STATUS DEFINITIONS
+=================================================================
+- Order Confirmed: Payment authorization completed and order accepted.
+- Processing: Order is being prepared in the warehouse.
+- Packed: Items are packed and waiting for carrier pickup.
+- Shipped: Package has left the warehouse; tracking is active.
+- In Transit: Package is moving through the carrier network.
+- Out for Delivery: Package is expected to be delivered today.
+- Delivered: Carrier marked package as delivered.
+- Delivery Attempted: Carrier attempted delivery but could not complete it.
+- Delayed: Delivery is delayed due to weather, volume, or route exceptions.
+- Returned to Sender: Package is being returned to our warehouse.
+- Cancelled: Order was canceled before shipment.
+
+Tracking notes:
+- Tracking numbers are sent by email/SMS once status changes to Shipped.
+- Tracking updates may take up to 24 hours after first scan.
+- If status has not changed for 72+ hours, customer may request investigation.
+
+=================================================================
+2) SHIPPING POLICY
+=================================================================
+Shipping options (simulated):
+- Standard Shipping: 3-7 business days
+- Expedited Shipping: 2-3 business days
+- Priority Shipping: 1-2 business days
+
+Important rules:
+- Business days exclude weekends and public holidays.
+- Orders placed after 5:00 PM local warehouse time are processed next business day.
+- Address changes are not guaranteed once order is Packed or later.
+- Signature may be required for high-value orders.
+
+International shipping:
+- Delivery estimates vary by destination and customs processing.
+- Customs duties/taxes are paid by customer unless stated at checkout.
+
+=================================================================
+3) RETURN & REFUND POLICY
+=================================================================
+Eligibility windows:
+- Standard items: Return within 30 days of delivery.
+- Electronics: Return within 15 days of delivery.
+- Apparel/footwear: Return within 30 days if unworn and tags attached.
+
+Non-returnable items:
+- Final Sale items
+- Gift cards
+- Personal care items once opened
+- Customized/personalized products
+
+Condition requirements:
+- Item must be in original condition and packaging.
+- Include all accessories/manuals for electronics.
+- Missing components may reduce refund amount.
+
+Fees:
+- Electronics may include 15% restocking fee if opened and not defective.
+- Return shipping fee may be deducted when prepaid label is used (region-dependent).
+
+Refund timing:
+- Refund is issued to original payment method.
+- Processing: 3-5 business days after return is received and inspected.
+- Bank/card posting time: additional 2-7 business days.
+
+Exchange policy:
+- Exchanges are supported for size/color when inventory is available.
+- If unavailable, customer can choose refund or store credit.
+
+=================================================================
+4) CANCELLATION POLICY
+=================================================================
+- Cancellation is possible only before shipment.
+- If status is Order Confirmed or Processing, cancellation is usually allowed.
+- If status is Packed/Shipped/In Transit, cancellation is not possible.
+- Customer should refuse delivery or initiate return after delivery if needed.
+
+=================================================================
+5) DAMAGED, MISSING, OR WRONG ITEM
+=================================================================
+Damaged item:
+- Report within 7 days of delivery.
+- Provide photos of packaging and damaged product.
+- Resolution: replacement, refund, or partial refund based on case.
+
+Missing item marked delivered:
+- Ask customer to verify delivery location and neighbors.
+- Wait up to 24 hours for final carrier drop-off update.
+- If still missing, open carrier investigation.
+
+Wrong item received:
+- Customer should not use the item.
+- Provide order ID and item photos.
+- Support arranges replacement or full refund.
+
+=================================================================
+6) PAYMENT & BILLING
+=================================================================
+Accepted payment methods (simulated):
+- Credit/Debit cards
+- UPI/Net banking
+- Wallets
+- COD (selected locations)
+
+Common payment states:
+- Payment Pending: awaiting gateway confirmation.
+- Payment Failed: transaction unsuccessful.
+- Refunded: payment reversal initiated/completed.
+
+Duplicate charge handling:
+- Temporary authorization holds may appear as duplicate charges.
+- Most holds auto-release within 3-5 business days.
+- If posted duplicate remains beyond 7 business days, escalate billing ticket.
+
+=================================================================
+7) PROMOTIONS, COUPONS, AND PRICE MATCH
+=================================================================
+- Only one promo code can be applied per order unless campaign says otherwise.
+- Promo codes cannot be applied after order placement.
+- Expired codes are invalid.
+- Price match allowed within 7 days of purchase for eligible products.
+- Exclusions: clearance/final sale/limited-time flash deals.
+
+=================================================================
+8) WARRANTY SUPPORT (SIMULATED)
+=================================================================
+- Standard manufacturer warranty applies where applicable.
+- Warranty claims require invoice/order proof.
+- Physical damage, water damage, and misuse are excluded unless stated by manufacturer.
+
+=================================================================
+9) ACCOUNT, PRIVACY, AND SECURITY
+=================================================================
+- Customers can request account data export/deletion via support verification.
+- Address/email/phone updates require identity verification for security.
+- Refund destination cannot be changed from original payment source.
+
+=================================================================
+10) SUPPORT ESCALATION GUIDELINES
+=================================================================
+Escalate to specialist queue when:
+- Order is stuck In Transit for 72+ hours with no movement.
+- High-value package marked Delivered but customer reports non-receipt.
+- Repeated payment failures with successful bank debit.
+- Customer reports legal/compliance/privacy complaints.
+
+Priority SLA (simulated):
+- P1 critical (payment charged + no order): response within 2 hours.
+- P2 urgent (missing/damaged high-value): response within 6 hours.
+- P3 normal (policy query): response within 24 hours.
+
+=================================================================
+11) AGENT RESPONSE STYLE FOR USERS
+=================================================================
+- Use plain, clear, and empathetic language.
+- Confirm the customer concern in one sentence.
+- Provide next step with expected timeline.
+- Avoid legal or absolute promises unless explicitly in policy.
+- If information is unavailable, say so clearly and offer escalation.
