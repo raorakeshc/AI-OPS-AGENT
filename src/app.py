@@ -9,7 +9,7 @@ st.markdown(
     """
     <style>
     .stApp {
-        background-image: linear-gradient(rgba(7, 12, 24, 0.78), rgba(7, 12, 24, 0.82)),
+        background-image: linear-gradient(rgba(255, 245, 179, 0.78), rgba(255, 255, 255, 0.82)),
                           url('https://images.unsplash.com/photo-1578575437130-527eed3abbec?auto=format&fit=crop&w=1920&q=80');
         background-size: cover;
         background-attachment: fixed;
@@ -17,8 +17,8 @@ st.markdown(
     }
 
     .brand-card {
-        background: rgba(255, 255, 255, 0.08);
-        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: rgba(255, 255, 255, 0.90);
+        border: 1px solid rgba(255, 214, 10, 0.55);
         border-radius: 16px;
         padding: 18px 22px;
         margin-bottom: 14px;
@@ -32,34 +32,34 @@ st.markdown(
         width: 42px;
         height: 42px;
         border-radius: 50%;
-        background: linear-gradient(135deg, #00b4d8, #0077b6);
-        color: white;
+        background: linear-gradient(135deg, #ffd60a, #ffb703);
+        color: #1f2937;
         font-weight: 700;
         margin-right: 10px;
         font-size: 18px;
     }
 
     .brand-title {
-        color: #ffffff;
+        color: #1f2937;
         font-size: 26px;
         font-weight: 700;
         margin: 0;
     }
 
     .brand-subtitle {
-        color: #d7e3ff;
+        color: #374151;
         margin-top: 4px;
         font-size: 14px;
     }
 
     .stChatMessage {
-        background: rgba(255, 255, 255, 0.07);
+        background: rgba(255, 255, 255, 0.88);
         border-radius: 12px;
-        border: 1px solid rgba(255, 255, 255, 0.12);
+        border: 1px solid rgba(255, 214, 10, 0.45);
     }
 
     [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, rgba(2, 8, 20, 0.95), rgba(8, 24, 48, 0.95));
+        background: linear-gradient(180deg, rgba(255, 248, 204, 0.98), rgba(255, 255, 255, 0.98));
     }
     </style>
     """,
