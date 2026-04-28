@@ -303,7 +303,11 @@ Knowledge base context:
             logging.info(f"Query processed. Thread: {thread_id}, Latency: {latency:.2f}s")
             
             last_message = response["messages"][-1]
-            return self._content_to_text(last_message.content)
+            final_text = self._content_to_text(last_message.content)
+            if "need more steps" in final_text.lower():
+                logging.warning(f"Agent returned 'need more steps'. Using single-pass fallback. Thread: {thread_id}")
+                return self._safe_single_pass_response(query=query, thread_id=thread_id)
+            return final_text
         except Exception as e:
             latency = time.time() - start_time
             logging.error(f"Error processing query. Thread: {thread_id}, Error: {str(e)}, Latency: {latency:.2f}s")
