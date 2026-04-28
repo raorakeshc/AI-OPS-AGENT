@@ -111,32 +111,35 @@ def load_orders_data():
 
 def render_login_page():
     render_brand_header()
-    left_col, center_col, right_col = st.columns([1.4, 1, 1.4])
+    left_col, center_col, right_col = st.columns([1.6, 0.8, 1.6])
 
     with center_col:
-        st.markdown(
-            """
-            <div class="login-card">
-                <h3 style="margin-top:0; color:#1f2937;">Login</h3>
-                <p style="color:#4b5563; margin-bottom:18px;">Use demo credentials to access dashboard and agent.</p>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+        inner_left, form_col, inner_right = st.columns([0.08, 1, 0.08])
 
-        with st.form("login_form", clear_on_submit=False):
-            username = st.text_input("Username")
-            password = st.text_input("Password", type="password")
-            submitted = st.form_submit_button("Login", use_container_width=True)
+        with form_col:
+            st.markdown(
+                """
+                <div class="login-card">
+                    <h3 style="margin-top:0; color:#1f2937;">Login</h3>
+                    <p style="color:#4b5563; margin-bottom:18px;">Use demo credentials to access dashboard and agent.</p>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 
-            if submitted:
-                if username == "admin" and password == "admin123":
-                    st.session_state.authenticated = True
-                    st.session_state.current_page = "Dashboard"
-                    st.success("Login successful. Redirecting to dashboard...")
-                    st.rerun()
-                else:
-                    st.error("Invalid credentials. Try admin / admin123")
+            with st.form("login_form", clear_on_submit=False):
+                username = st.text_input("Username")
+                password = st.text_input("Password", type="password")
+                submitted = st.form_submit_button("Login", use_container_width=True)
+
+                if submitted:
+                    if username == "admin" and password == "admin123":
+                        st.session_state.authenticated = True
+                        st.session_state.current_page = "Dashboard"
+                        st.success("Login successful. Redirecting to dashboard...")
+                        st.rerun()
+                    else:
+                        st.error("Invalid credentials. Try admin / admin123")
 
 
 def render_dashboard_page():
