@@ -10,9 +10,9 @@ from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from agent import SupportAgent
-from config import get_config
-from schemas import (
+from src.agent import SupportAgent
+from src.config import get_config
+from src.schemas import (
     QueryRequest,
     QueryResponse,
     QueryType,

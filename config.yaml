@@ -1,0 +1,94 @@
+# Production Configuration for AI-OPS Agent
+
+# LLM Configuration
+llm:
+  provider: "openai"
+  model: "gpt-3.5-turbo"
+  temperature: 0.0
+  timeout: 30
+  max_retries: 3
+
+# Agent Configuration
+agent:
+  recursion_limit: 10
+  feedback_filepath: "data/feedback.json"
+  log_filepath: "logs/agent.log"
+  thread_ttl_seconds: 3600  # Thread memory expiration
+
+# RAG Configuration
+rag:
+  kb_filepath: "data/kb.txt"
+  chunk_size: 200
+  chunk_overlap: 50
+  embeddings_model: "models/gemini-embedding-2"
+  retriever_k: 4  # Number of docs to retrieve
+
+# Intent Detection Patterns
+intent:
+  status_keywords:
+    - status
+    - where
+    - track
+    - tracking
+    - check
+    - update
+    - location
+    - eta
+    - delivered
+    - shipped
+  kb_keywords:
+    - policy
+    - refund
+    - return
+    - shipping
+    - faq
+    - how
+    - can i
+    - what
+    - why
+    - when
+  order_id_pattern: '\b\d{3,10}\b'
+  order_id_max_length: 10
+
+# Tool Configuration
+tools:
+  get_order_status:
+    enabled: true
+    timeout: 5
+  search_knowledge_base:
+    enabled: true
+    timeout: 10
+
+# Application Settings
+app:
+  name: "AI-OPS Support Agent"
+  version: "1.0.0"
+  environment: "production"
+  debug: false
+  cors_origins:
+    - "http://localhost:3000"
+    - "http://localhost:8501"
+
+# Logging
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  handlers:
+    - type: "file"
+      filename: "logs/agent.log"
+      max_bytes: 10485760  # 10MB
+      backup_count: 5
+    - type: "console"
+      level: "INFO"
+
+# Performance
+performance:
+  cache_enabled: true
+  cache_ttl_seconds: 3600
+  connection_pool_size: 10
+
+# Security
+security:
+  sanitize_input: true
+  max_input_length: 2000
+  rate_limit_per_minute: 60
