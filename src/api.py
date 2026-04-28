@@ -128,9 +128,11 @@ def render_login_page():
             )
 
             with st.form("login_form", clear_on_submit=False):
-                username = st.text_input("Username")
-                password = st.text_input("Password", type="password")
-                submitted = st.form_submit_button("Login", use_container_width=True)
+                input_left, input_center, input_right = st.columns([0.34, 0.32, 0.34])
+                with input_center:
+                    username = st.text_input("Username")
+                    password = st.text_input("Password", type="password")
+                    submitted = st.form_submit_button("Login", use_container_width=True)
 
                 if submitted:
                     if username == "admin" and password == "admin123":
