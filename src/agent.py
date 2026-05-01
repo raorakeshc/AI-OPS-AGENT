@@ -57,7 +57,7 @@ class FeedbackManager:
 
 @tool
 def get_order_status(order_id: str) -> str:
-    """Gets shipping status for an order ID from an external API.
+    """Gets shipping status for an order id or order number from an external API.
     IMPORTANT SAFEGUARD: order_id must be 10 characters or fewer.
 
     Environment variables:
@@ -161,7 +161,7 @@ class SupportAgent:
             re.IGNORECASE
         )
         self._order_id_recall_pattern = re.compile(
-            r"\b(what(?:'s|\s+is)?\s+my\s+order\s+id|my\s+order\s+id\??)\b",
+            r"\b(what(?:'s|\s+is)?\s+my\s+(?:order\s+id|order\s+number)|my\s+(?:order\s+id|order\s+number)\??)\b",
             re.IGNORECASE
         )
         self._escalation_intent_pattern = re.compile(
@@ -259,16 +259,16 @@ You are a customer support agent. Follow the policy below strictly.
 
 CONTEXT:
 - Latest user message: {latest_user_text or "<empty>"}
-- Active order id from conversation memory: {active_order_line}
+- Active order id or order number from conversation memory: {active_order_line}
 - Latest state message came from tool: {is_last_tool_message}
 
 POLICY:
 0) CRITICAL STOP GUARD: If no_new_user_since_tool=True, DO NOT call any tool. Return a final user-facing answer using the latest tool result.
 1) If the latest state message is from a tool, summarize that tool result for the user in plain language and do not call another tool unless the user asked a separate new question.
-2) If the user asks about order tracking/status and an active order id exists, call get_order_status(order_id=<active_order_id>).
+2) If the user asks about order tracking/status and an active order id or order number exists, call get_order_status(order_id=<active_order_id>).
 3) If the user asks about policy/FAQ/refund/return/shipping, call search_knowledge_base before answering.
-4) If status is requested but no order id is known, ask for the order id (10 characters or fewer).
-5) For greetings or general chat, respond naturally. If an active order id exists, mention that you can help with that order.
+4) If status is requested but no order id or order number is known, ask for the order id or order number (10 characters or fewer).
+5) For greetings or general chat, respond naturally. If an active order id or order number exists, mention that you can help with that order.
 6) Keep responses concise, accurate, and professional.
 
 INTENT FLAGS:
@@ -340,7 +340,7 @@ INTENT FLAGS:
 
         if is_status_query:
             if not active_order_id:
-                return "Please share your order ID (10 characters or fewer), and I will check the status for you."
+                return "Please share your order id or order number (10 characters or fewer), and I will check the status for you."
 
             tool_result = get_order_status.invoke({"order_id": active_order_id})
             return f"Order {active_order_id} status: {tool_result}"
@@ -370,7 +370,7 @@ Knowledge base context:
 
         if active_order_id:
             return f"I can help with your request. I still have Order {active_order_id} in context if you want me to check its status."
-        return "How can I help you today? If you have an order issue, share your order ID (10 characters or fewer)."
+        return "How can I help you today? If you have an order issue, share your order id or order number (10 characters or fewer)."
 
     def ask(self, query: str, thread_id: str = "default_thread"):
         # Add recursion_limit to prevent infinite tool loops
@@ -388,8 +388,8 @@ Knowledge base context:
 
         if is_recall_query:
             if remembered_id:
-                return f"Your current order ID is {remembered_id}."
-            return "I do not have your order ID yet. Please share it (10 characters or fewer)."
+                return f"Your current order id or order number is {remembered_id}."
+            return "I do not have your order id or order number yet. Please share it (10 characters or fewer)."
 
         is_escalation_query = bool(self._escalation_intent_pattern.search(query_text))
         mentions_non_receipt = bool(self._non_receipt_pattern.search(query_text))
@@ -397,7 +397,7 @@ Knowledge base context:
         if is_escalation_query or mentions_non_receipt:
             active_order_id = extracted_id or remembered_id
             if not active_order_id:
-                return "Yes, I can help escalate this. Please share your order ID (10 characters or fewer)."
+                return "Yes, I can help escalate this. Please share your order id or order number (10 characters or fewer)."
 
             latest_status = get_order_status.invoke({"order_id": active_order_id})
             latest_status_lower = str(latest_status).lower()
@@ -423,12 +423,12 @@ Knowledge base context:
         is_kb_query = bool(self._kb_intent_pattern.search(query_text)) or "?" in query_text
 
         if extracted_id and not is_order_status_like_query and not is_kb_query:
-            return f"Thanks — I have saved Order ID {extracted_id}. Ask me to check its status anytime."
+            return f"Thanks — I have saved order id or order number {extracted_id}. Ask me to check its status anytime."
 
         if is_order_status_like_query:
             active_order_id = extracted_id or remembered_id
             if not active_order_id:
-                return "Please share your order ID (10 characters or fewer), and I will check the status for you."
+                return "Please share your order id or order number (10 characters or fewer), and I will check the status for you."
 
             tool_result = get_order_status.invoke({"order_id": active_order_id})
             return f"Order {active_order_id} status: {tool_result}"
