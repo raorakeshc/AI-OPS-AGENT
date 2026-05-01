@@ -180,7 +180,8 @@ class SupportAgent:
         # 2. Define RAG Tool
         @tool
         def search_knowledge_base(query: str) -> str:
-            """Searches the company knowledge base for refund policies, shipping rules, and general FAQs."""
+            """USE THIS TOOL to find information about return policies, eligibility windows, shipping rules, and any company FAQs. This is the ONLY way to get accurate policy info. Search for specific terms like 'return window' or 'electronics return'."""
+            logging.info(f"search_knowledge_base tool called with query: {query}")
             if not getattr(self, "retriever", None):
                 return "Knowledge base is unavailable."
             docs = self.retriever.invoke(query)
@@ -256,28 +257,17 @@ class SupportAgent:
             active_order_line = active_order_id if active_order_id else "None"
 
             return f"""
-You are a customer support agent. Follow the policy below strictly.
+You are a customer support agent for AI-OPS STORE. 
+Your main task is to help users with their orders and policy questions.
 
-CONTEXT:
-- Latest user message: {latest_user_text or "<empty>"}
-- Active order id or order number from conversation memory: {active_order_line}
-- Latest state message came from tool: {is_last_tool_message}
+GUIDELINES:
+1. For any question about policies, returns, shipping, or refunds, you MUST use the 'search_knowledge_base' tool. 
+2. Do not attempt to answer policy questions from your own knowledge.
+3. If the user provides an order ID ({active_order_line}), use it when relevant.
+4. Summarize tool results clearly for the user.
 
-POLICY:
-0) CRITICAL STOP GUARD: If no_new_user_since_tool=True, DO NOT call any tool. Return a final user-facing answer using the latest tool result.
-1) If the latest state message is from a tool, summarize that tool result for the user in plain language and do not call another tool unless the user asked a separate new question.
-2) If the user asks about order tracking/status and an active order id or order number exists, call get_order_status(order_id=<active_order_id>).
-3) If the user asks about policy/FAQ/refund/return/shipping, call search_knowledge_base before answering.
-4) If status is requested but no order id or order number is known, ask for the order id or order number (10 characters or fewer).
-5) For greetings or general chat, respond naturally. If an active order id or order number exists, mention that you can help with that order.
-6) Keep responses concise, accurate, and professional.
-
-INTENT FLAGS:
-- status_query={is_status_query}
-- kb_query={is_kb_query}
-- no_new_user_since_tool={no_new_user_since_tool}
-
-{style_block}
+Current Context:
+- Active Order ID: {active_order_line}
 """.strip()
 
         self.llm_with_tools = self.llm.bind_tools(self.tools)
@@ -290,24 +280,32 @@ INTENT FLAGS:
         logging.info("SupportAgent initialized successfully.")
 
     def _setup_rag(self):
-        try:
-            loader = TextLoader("data/kb.txt")
-            docs = loader.load()
-            text_splitter = RecursiveCharacterTextSplitter(chunk_size=200, chunk_overlap=50)
-            splits = text_splitter.split_documents(docs)
-            
-            class CustomGoogleEmbeddings(GoogleGenerativeAIEmbeddings):
-                def embed_documents(self, texts: list[str]) -> list[list[float]]:
-                    return [self.embed_query(text) for text in texts]
-                    
-            embeddings = CustomGoogleEmbeddings(model="models/gemini-embedding-2")
-            vectorstore = Chroma.from_documents(documents=splits, embedding=embeddings)
-            self.retriever = vectorstore.as_retriever()
-            print("Successfully loaded KB and initialized Tools.")
-        except Exception as e:
-            print(f"Warning: Failed to setup RAG Tool. Error: {e}")
-            logging.error(f"Failed to setup RAG Tool: {e}")
-            self.retriever = None
+        retries = 3
+        for i in range(retries):
+            try:
+                loader = TextLoader("data/kb.txt")
+                docs = loader.load()
+                # Increased chunk size for better context retention
+                text_splitter = RecursiveCharacterTextSplitter(chunk_size=600, chunk_overlap=100)
+                splits = text_splitter.split_documents(docs)
+                
+                class CustomGoogleEmbeddings(GoogleGenerativeAIEmbeddings):
+                    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+                        return [self.embed_query(text) for text in texts]
+                        
+                embeddings = CustomGoogleEmbeddings(model="models/gemini-embedding-2")
+                vectorstore = Chroma.from_documents(documents=splits, embedding=embeddings)
+                self.retriever = vectorstore.as_retriever()
+                print("Successfully loaded KB and initialized Tools.")
+                logging.info("RAG Retriever setup successfully.")
+                return
+            except Exception as e:
+                print(f"Warning: Failed to setup RAG Tool (Attempt {i+1}/{retries}). Error: {e}")
+                logging.error(f"Failed to setup RAG Tool (Attempt {i+1}/{retries}): {e}")
+                if i < retries - 1:
+                    time.sleep(2) # Wait before retry
+                else:
+                    self.retriever = None
 
     def _content_to_text(self, content) -> str:
         if isinstance(content, str):

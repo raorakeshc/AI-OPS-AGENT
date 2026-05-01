@@ -30,13 +30,14 @@ st.markdown(f"""
     }}
 
     .brand-card {{
-        background: rgba(3, 105, 161, 0.8);
-        backdrop-filter: blur(15px);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        border-radius: 20px;
-        padding: 16px 24px;
-        margin-bottom: 20px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        background: linear-gradient(135deg, rgba(3, 105, 161, 0.9), rgba(2, 132, 199, 0.7));
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 24px;
+        padding: 20px 28px;
+        margin-bottom: 25px;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
     }}
 
     .brand-logo {{
@@ -67,14 +68,21 @@ st.markdown(f"""
         font-size: 14px;
     }}
 
-    /* Dashboard Glassmorphism */
+    /* Dashboard Glassmorphism Metrics */
     [data-testid="stMetric"] {{
-        background: rgba(255, 255, 255, 0.6);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 214, 10, 0.3);
-        border-radius: 16px;
-        padding: 15px !important;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        background: rgba(255, 255, 255, 0.75);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 214, 10, 0.4);
+        border-radius: 20px;
+        padding: 20px !important;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+        transition: transform 0.3s ease;
+    }}
+
+    [data-testid="stMetric"]:hover {{
+        transform: translateY(-5px);
+        box-shadow: 0 12px 40px rgba(255, 214, 10, 0.2);
     }}
 
     [data-testid="stMetricValue"] {{
@@ -94,9 +102,12 @@ st.markdown(f"""
     }}
 
     .stChatMessage {{
-        background: rgba(255, 255, 255, 0.88);
-        border-radius: 12px;
-        border: 1px solid rgba(255, 214, 10, 0.45);
+        background: rgba(255, 255, 255, 0.92);
+        backdrop-filter: blur(5px);
+        border-radius: 16px;
+        border: 1px solid rgba(255, 214, 10, 0.3);
+        margin-bottom: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
     }}
 
     [data-testid="stSidebar"] {{
