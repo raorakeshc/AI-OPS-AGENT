@@ -160,7 +160,13 @@ def render_login_page():
             if submitted:
                 if username == "admin" and password == "admin123":
                     st.session_state.authenticated = True
+                    st.session_state.role = "admin"
                     st.session_state.current_page = "Dashboard"
+                    st.rerun()
+                elif username == "user" and password == "user123":
+                    st.session_state.authenticated = True
+                    st.session_state.role = "user"
+                    st.session_state.current_page = "Agent"
                     st.rerun()
                 else:
                     st.error("Invalid credentials")
@@ -311,6 +317,9 @@ def render_agent_page():
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
+if "role" not in st.session_state:
+    st.session_state.role = None
+
 if "current_page" not in st.session_state:
     st.session_state.current_page = "Dashboard"
 
@@ -318,16 +327,28 @@ if "current_page" not in st.session_state:
 if st.session_state.authenticated:
     with st.sidebar:
         st.markdown("### Navigation")
+        
+        # Define pages based on role
+        if st.session_state.role == "admin":
+            pages = ["Dashboard", "Agent"]
+        else:
+            pages = ["Agent"]
+            
+        # Ensure current_page is valid for the role
+        if st.session_state.current_page not in pages:
+            st.session_state.current_page = pages[0]
+
         selected_page = st.radio(
             "Go to",
-            ["Dashboard", "Agent"],
-            index=0 if st.session_state.current_page == "Dashboard" else 1,
+            pages,
+            index=pages.index(st.session_state.current_page) if st.session_state.current_page in pages else 0,
         )
         st.session_state.current_page = selected_page
 
         st.markdown("---")
         if st.button("Logout"):
             st.session_state.authenticated = False
+            st.session_state.role = None
             st.session_state.current_page = "Dashboard"
             st.rerun()
 
