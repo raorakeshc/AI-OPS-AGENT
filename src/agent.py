@@ -142,7 +142,8 @@ class SupportAgent:
             raise ValueError("OPENAI_API_KEY not found. Check your .env file.")
 
         self.llm = ChatOpenAI(
-            model="gpt-3.5-turbo",
+            #model="gpt-3.5-turbo",
+            model="gpt-5.2",
             temperature=0,
             base_url="https://openai.vocareum.com/v1",
             api_key=openai_api_key
