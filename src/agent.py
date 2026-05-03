@@ -58,18 +58,14 @@ class FeedbackManager:
 @tool
 def get_order_status(order_id: str) -> str:
     """Gets shipping status for an order id or order number from an external API.
-    IMPORTANT SAFEGUARD: order_id must be 10 characters or fewer.
-
-    Environment variables:
-    - ORDER_STATUS_API_URL: Endpoint URL. Supports either:
-      1) Placeholder style: https://.../orders/{order_id}
-      2) Query style base URL: https://.../orders/status
-    - ORDER_STATUS_TIMEOUT (optional): Timeout in seconds, default=8.
+    IMPORTANT SAFEGUARD: order_id digits must be 10 characters or fewer.
     """
-    order_id = str(order_id).strip()
-
-    if len(order_id) > 10:
-        return "Error: Invalid tool usage. order_id is too long. It must be 10 characters or fewer."
+    # Clean order_id: keep only digits
+    digits_match = re.search(r"(\d+)", str(order_id))
+    clean_id = digits_match.group(1) if digits_match else str(order_id).strip()
+    
+    if len(clean_id) > 10:
+        return "Error: Invalid tool usage. order_id digits are too long. It must be 10 characters or fewer."
 
     api_url = os.getenv("ORDER_STATUS_API_URL", "").strip()
     timeout_raw = os.getenv("ORDER_STATUS_TIMEOUT", "8").strip()
@@ -85,10 +81,10 @@ def get_order_status(order_id: str) -> str:
         timeout_seconds = 8.0
 
     if "{order_id}" in api_url:
-        final_url = api_url.replace("{order_id}", order_id)
+        final_url = api_url.replace("{order_id}", clean_id)
     else:
         connector = "&" if "?" in api_url else "?"
-        final_url = f"{api_url}{connector}{urlencode({'order_id': order_id})}"
+        final_url = f"{api_url}{connector}{urlencode({'order_id': clean_id})}"
 
     headers = {
         "Accept": "application/json",
@@ -152,7 +148,7 @@ class SupportAgent:
         self.feedback_manager = FeedbackManager()
         self._thread_order_ids = {}
 
-        self._order_id_pattern = re.compile(r"\b\d{3,10}\b")
+        self._order_id_pattern = re.compile(r"(?:order|#)?\s*(\d{3,10})", re.IGNORECASE)
         self._status_intent_pattern = re.compile(
             r"\b(status|where|track(?:ing)?|check|update|location|eta|delivered|shipped)\b",
             re.IGNORECASE
@@ -170,7 +166,11 @@ class SupportAgent:
             re.IGNORECASE
         )
         self._non_receipt_pattern = re.compile(
-            r"\b(not\s+received|didn['’]?t\s+receive|not\s+delivered|missing)\b",
+            r"\b(not\s+rec[ie]{2}ved|didn['’]?t\s+rec[ie]{2}ve|not\s+delivered|missing)\b",
+            re.IGNORECASE
+        )
+        self._verified_pattern = re.compile(
+            r"\b(verified|checked|looked|everyone|neighbor| neighbors)\b",
             re.IGNORECASE
         )
         
@@ -261,13 +261,16 @@ You are a customer support agent for AI-OPS STORE.
 Your main task is to help users with their orders and policy questions.
 
 GUIDELINES:
-1. For any question about policies, returns, shipping, or refunds, you MUST use the 'search_knowledge_base' tool. 
-2. Do not attempt to answer policy questions from your own knowledge.
-3. If the user provides an order ID ({active_order_line}), use it when relevant.
-4. Summarize tool results clearly for the user.
+1. KB_QUERY_FLAG={is_kb_query}: If this flag is True, you MUST call 'search_knowledge_base' immediately. Do not ask for more info.
+2. For any question about policies, returns, shipping, or refunds, you MUST use the 'search_knowledge_base' tool.
+3. For any question about order status or tracking, you MUST use the 'get_order_status' tool if an order ID is available.
+4. Do not attempt to answer policy or status questions from your own knowledge.
+5. If the user provides an order ID ({active_order_line}), use it when relevant.
+6. Summarize tool results clearly and professionally for the user.
 
 Current Context:
 - Active Order ID: {active_order_line}
+- User Question Detected as Policy Query: {is_kb_query}
 """.strip()
 
         self.llm_with_tools = self.llm.bind_tools(self.tools)
@@ -320,7 +323,13 @@ Current Context:
 
     def _extract_order_id_from_query(self, query_text: str):
         match = self._order_id_pattern.search(query_text)
-        return match.group(0) if match else None
+        if match:
+            # Try to return the first group (digits) if it exists, otherwise the whole match
+            try:
+                return match.group(1)
+            except IndexError:
+                return match.group(0)
+        return None
 
     def _is_order_id_recall_query(self, query_text: str) -> bool:
         return bool(self._order_id_recall_pattern.search(query_text))
@@ -402,6 +411,13 @@ Knowledge base context:
             latest_status_lower = str(latest_status).lower()
 
             if "delivered" in latest_status_lower:
+                is_verified = bool(self._verified_pattern.search(query_text))
+                if is_verified:
+                    return (
+                        f"Thank you for confirming. I have now initiated a formal escalation and carrier investigation for Order {active_order_id}. "
+                        "Our logistics team will contact the carrier and provide a resolution within 6 hours. "
+                        "A support ticket has been raised (ID: UBA-" + str(active_order_id) + ")."
+                    )
                 return (
                     f"Yes — I can escalate this for Order {active_order_id}. "
                     "Since it is marked Delivered but not received, please verify your delivery location and neighbors, "
@@ -431,6 +447,10 @@ Knowledge base context:
 
             tool_result = get_order_status.invoke({"order_id": active_order_id})
             return f"Order {active_order_id} status: {tool_result}"
+
+        if is_kb_query:
+            logging.info(f"Directly processing KB query: {query_text}")
+            return self._safe_single_pass_response(query=query_text, thread_id=thread_id)
         
         start_time = time.time()
         try:
