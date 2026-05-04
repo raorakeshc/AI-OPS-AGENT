@@ -1,14 +1,62 @@
+# Production Dependencies for AI-OPS Agent
+
+# Core LangChain & AI
 langchain>=0.3.0
-langchain-openai
-langchain-chroma
-python-dotenv
-chromadb
-pydantic
-langchain-google-genai
-google-generativeaipip 
-langchain-google-genai 
-langchain-core 
-python-dotenv
-langchain-chroma
-langchain-community
-langgraph
+langchain-openai>=0.1.0
+langchain-core>=0.1.0
+langchain-community>=0.1.0
+langgraph>=0.1.0
+
+# Vector Store & Embeddings
+langchain-chroma>=0.1.0
+chromadb>=0.4.0
+langchain-google-genai>=0.1.0
+google-generativeai>=0.3.0
+
+# API Framework
+fastapi>=0.100.0
+uvicorn[standard]>=0.23.0
+pydantic>=2.0.0
+
+# Configuration
+pyyaml>=6.0
+
+# Environment & Security
+python-dotenv>=1.0.0
+
+# Async Support
+aiofiles>=23.0.0
+
+# Logging & Monitoring
+structlog>=23.0.0
+python-json-logger>=2.0.0
+
+# Testing
+#pytest>=7.4.0
+#pytest-asyncio>=0.21.0
+#pytest-cov>=4.1.0
+#httpx>=0.24.0
+
+# Code Quality
+#black>=23.0.0
+#isort>=5.12.0
+#flake8>=6.0.0
+#mypy>=1.4.0
+#pylint>=2.17.0
+
+# Documentation
+mkdocs>=1.5.0
+mkdocs-material>=9.0.0
+
+# Performance & Caching
+#redis>=5.0.0
+#cachetools>=5.3.0
+
+# Monitoring & Tracing
+#opentelemetry-api>=1.20.0
+#opentelemetry-sdk>=1.20.0
+#opentelemetry-exporter-jaeger>=1.20.0
+
+# Development
+#ipython>=8.0.0
+#jupyter>=1.0.0
