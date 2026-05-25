@@ -4,7 +4,7 @@ import json
 import base64
 from pathlib import Path
 from collections import Counter
-from agent import SupportAgent # Ensure your script is in src/agent.py
+from src.support_agent import SupportAgent
 
 def get_base64_of_bin_file(bin_file):
     with open(bin_file, 'rb') as f:
