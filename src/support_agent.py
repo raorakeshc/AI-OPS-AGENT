@@ -59,39 +59,71 @@ class SupportAgent:
         self.tools = [get_order_status, search_knowledge_base]
         self.memory = MemorySaver()
 
-        # prompt function used by the agent executor
-        def dynamic_prompt(state) -> str:
-            messages = state.get("messages", [])
-            feedback_str = self.feedback_manager.get_feedback_string()
-            latest_user_text = self._latest_human_text(messages)
-            active_order_id = self._extract_active_order_id(messages, latest_user_text)
-            is_kb_query = bool(self._kb_intent_pattern.search(latest_user_text)) or "?" in latest_user_text
-            active_order_line = active_order_id if active_order_id else "None"
-            return f"""
-You are a customer support agent for AI-OPS STORE. 
-Your main task is to help users with their orders and policy questions.
-
-GUIDELINES:
-1. KB_QUERY_FLAG={is_kb_query}: If this flag is True, you MUST call 'search_knowledge_base' immediately. Do not ask for more info.
-2. For any question about policies, returns, shipping, or refunds, you MUST use the 'search_knowledge_base' tool.
-3. For any question about order status or tracking, you MUST use the 'get_order_status' tool if an order ID is available.
-4. Do not attempt to answer policy or status questions from your own knowledge.
-5. If the user provides an order ID ({active_order_line}), use it when relevant.
-6. Summarize tool results clearly and professionally for the user.
-
-Current Context:
-- Active Order ID: {active_order_line}
-- User Question Detected as Policy Query: {is_kb_query}
-""".strip()
-
         self.llm_with_tools = self.llm.bind_tools(self.tools)
         self.agent_executor = create_react_agent(
             self.llm_with_tools,
             self.tools,
             checkpointer=self.memory,
-            prompt=dynamic_prompt,
+            prompt=self._build_dynamic_prompt,
         )
         logging.info("SupportAgent initialized successfully.")
+
+    def _build_dynamic_prompt(self, state) -> str:
+        messages = state.get("messages", [])
+        feedback_str = self.feedback_manager.get_feedback_string()
+        latest_user_text = self._latest_human_text(messages)
+        active_order_id = self._extract_active_order_id(messages, latest_user_text)
+        last_message = messages[-1] if messages else None
+        last_tool_used = self._is_tool_message(last_message)
+        is_kb_query = bool(self._kb_intent_pattern.search(latest_user_text)) or "?" in latest_user_text
+        is_status_query = bool(self._status_intent_pattern.search(latest_user_text))
+        active_order_line = active_order_id if active_order_id else "None"
+
+        return f"""
+SYSTEM:
+You are a customer support agent for AI-OPS STORE.
+You must help users with order tracking, shipment status, returns, refunds, shipping policy, and escalations.
+Do not invent order IDs, delivery status, or policy details.
+If you do not have enough verified data, ask for clarification or say that the information is unavailable.
+
+SAFETY & TASK GUIDELINES:
+1. If the user asks about policy, returns, shipping, refunds, or eligibility, use `search_knowledge_base`.
+2. If the user asks about order status, tracking, or shipment location and an order ID is available, use `get_order_status`.
+3. If the user asks for a tool but the tool is not applicable, answer directly with a safe, factual response.
+4. Never answer policy or status questions from your own memory when the knowledge base or order tool is the correct source.
+5. If the user has not provided an order ID when one is needed, ask for it clearly and politely.
+6. When escalation or missing delivery is reported, verify the order status and explain the next operational step.
+7. Use the feedback block to adapt tone, but always remain professional and helpful.
+
+REASONING & FLOW:
+- First determine the user's intent.
+- Then choose one of these actions:
+  * `TOOL_CALL`: use a tool when the answer requires confirmed data.
+  * `DIRECT_ANSWER`: answer directly only when no tool is needed.
+- If you choose `TOOL_CALL`, select the most relevant tool and do not mix tools in the same response.
+- If a tool is used, summarize the tool result in the final response.
+
+AVAILABLE TOOLS:
+- get_order_status(order_id): Returns shipping status for a valid order ID.
+- search_knowledge_base(query): Returns policy, return, and shipping guidance from the knowledge base.
+
+CURRENT CONTEXT:
+- Active Order ID: {active_order_line}
+- Latest user text: {latest_user_text}
+- User intent likely requires KB search: {is_kb_query}
+- User intent likely requires status lookup: {is_status_query}
+- Last message was a tool response: {last_tool_used}
+
+TONE ADAPTATION:
+{feedback_str}
+
+REPLY FORMAT:
+1. Action: [TOOL_CALL or DIRECT_ANSWER]
+2. Reasoning: Briefly explain why this path was chosen.
+3. Response: Provide the customer-facing answer.
+
+Answer only once and do not include internal debug data.
+""".strip()
 
     # --- small helpers ---
     def _to_text(self, content) -> str:
