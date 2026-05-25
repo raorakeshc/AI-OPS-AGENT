@@ -3,13 +3,24 @@ import threading
 from typing import Dict, Any
 from fastapi import Request
 
-# Prometheus client
-from prometheus_client import Counter, Histogram, make_asgi_app
+PROMETHEUS_ENABLED = False
+try:
+    from prometheus_client import Counter, Histogram, make_asgi_app
+
+    PROMETHEUS_ENABLED = True
+except ImportError:
+    Counter = None  # type: ignore
+    Histogram = None  # type: ignore
+    make_asgi_app = None  # type: ignore
 
 
 # Prometheus metrics
-REQUEST_COUNT = Counter("requests_total", "Total HTTP requests", ["path"])
-REQUEST_LATENCY = Histogram("request_latency_ms", "Request latency in ms", ["path"])
+if PROMETHEUS_ENABLED:
+    REQUEST_COUNT = Counter("requests_total", "Total HTTP requests", ["path"])
+    REQUEST_LATENCY = Histogram("request_latency_ms", "Request latency in ms", ["path"])
+else:
+    REQUEST_COUNT = None
+    REQUEST_LATENCY = None
 
 
 class Metrics:
@@ -26,13 +37,13 @@ class Metrics:
             self._counts[path] = self._counts.get(path, 0) + 1
             self._total_latency_ms[path] = self._total_latency_ms.get(path, 0.0) + latency_ms
 
-        # update Prometheus metrics
-        try:
-            REQUEST_COUNT.labels(path=path).inc()
-            REQUEST_LATENCY.labels(path=path).observe(latency_ms)
-        except Exception:
-            # Prometheus client should be available, but ignore failures
-            pass
+        # update Prometheus metrics if available
+        if PROMETHEUS_ENABLED and REQUEST_COUNT is not None and REQUEST_LATENCY is not None:
+            try:
+                REQUEST_COUNT.labels(path=path).inc()
+                REQUEST_LATENCY.labels(path=path).observe(latency_ms)
+            except Exception:
+                pass
 
     def snapshot(self) -> Dict[str, Any]:
         with self._lock:
@@ -66,4 +77,12 @@ class MonitoringMiddleware:
 
 
 # ASGI app for Prometheus metrics
-prometheus_asgi_app = make_asgi_app()
+if PROMETHEUS_ENABLED and make_asgi_app is not None:
+    prometheus_asgi_app = make_asgi_app()
+else:
+    async def prometheus_asgi_app(scope, receive, send):
+        if scope["type"] != "http":
+            await send({"type": "http.disconnect"})
+            return
+        await send({"type": "http.response.start", "status": 404, "headers": [[b"content-type", b"text/plain"]]})
+        await send({"type": "http.response.body", "body": b"Prometheus is disabled (prometheus_client is not installed)", "more_body": False})

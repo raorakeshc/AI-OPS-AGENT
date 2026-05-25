@@ -7,7 +7,16 @@ from typing import Dict, Optional
 from fastapi import FastAPI, HTTPException, Header
 from pydantic import BaseModel, Field
 
-from .order_store import init_db, get_order_status, upsert_order, migrate_from_json, list_orders
+try:
+    from .order_store import init_db, get_order_status, upsert_order, migrate_from_json, list_orders
+    from .logging_config import configure_logging
+    from .monitoring import MonitoringMiddleware, metrics, prometheus_asgi_app
+    from .tracing import init_tracing
+except ImportError:
+    from order_store import init_db, get_order_status, upsert_order, migrate_from_json, list_orders
+    from logging_config import configure_logging
+    from monitoring import MonitoringMiddleware, metrics, prometheus_asgi_app
+    from tracing import init_tracing
 
 _db_conn = None
 
@@ -19,9 +28,6 @@ DATA_PATH = BASE_DIR / "data" / "orders.json"
 
 app = FastAPI(title=APP_TITLE, version=APP_VERSION)
 _data_lock = Lock()
-from .logging_config import configure_logging
-from .monitoring import MonitoringMiddleware, metrics, prometheus_asgi_app
-from .tracing import init_tracing
 
 # configure logging and tracing early
 configure_logging()
