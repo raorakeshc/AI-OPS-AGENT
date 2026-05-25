@@ -4,6 +4,8 @@ from pathlib import Path
 import shutil
 import os
 from typing import Optional, Dict
+from datetime import datetime
+import json
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -79,3 +81,66 @@ def list_memory() -> Dict[str, int]:
         count = sum(1 for _ in p.rglob("*"))
         result[scope] = count
     return result
+
+
+@router.get("/feedback/audit")
+def get_feedback_audit(since: Optional[str] = None, until: Optional[str] = None, limit: int = 100):
+    """Return recent feedback audit entries.
+
+    Query params:
+    - since: ISO timestamp (inclusive)
+    - until: ISO timestamp (inclusive)
+    - limit: max entries to return (most recent first)
+    """
+    audit_path = Path(__file__).resolve().parent.parent / "data" / "audit" / "feedback_audit.log"
+    if not audit_path.exists():
+        return {"entries": []}
+
+    entries = []
+    try:
+        with open(audit_path, "r", encoding="utf-8") as af:
+            for line in af:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    obj = json.loads(line)
+                except Exception:
+                    continue
+                ts = obj.get("timestamp")
+                if ts:
+                    try:
+                        ts_dt = datetime.fromisoformat(ts.replace("Z", ""))
+                    except Exception:
+                        ts_dt = None
+                else:
+                    ts_dt = None
+
+                entries.append((ts_dt, obj))
+
+        # sort by timestamp desc (None goes last)
+        entries.sort(key=lambda x: (x[0] is None, x[0]), reverse=True)
+
+        def _in_range(ts_dt):
+            if ts_dt is None:
+                return True
+            if since:
+                try:
+                    s_dt = datetime.fromisoformat(since.replace("Z", ""))
+                    if ts_dt < s_dt:
+                        return False
+                except Exception:
+                    pass
+            if until:
+                try:
+                    u_dt = datetime.fromisoformat(until.replace("Z", ""))
+                    if ts_dt > u_dt:
+                        return False
+                except Exception:
+                    pass
+            return True
+
+        filtered = [obj for ts_dt, obj in entries if _in_range(ts_dt)]
+        return {"entries": filtered[: max(0, min(limit, len(filtered)))]}
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to read audit log")
