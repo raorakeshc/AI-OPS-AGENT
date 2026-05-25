@@ -35,12 +35,50 @@ streamlit run src/app.py
 ---
 
 ## 📂 Source Overview
-- `src/agent.py`: Core logic for the `SupportAgent` class, LangGraph executor, and RAG setup.
-- `src/app.py`: Streamlit UI with custom CSS glassmorphism.
+- `src/agent.py`: CLI wrapper and entrypoint for running the modular agent from the command line.
+- `src/support_agent.py`: Actual agent logic, tool binding, LangGraph ReAct executor, intent routing, fallback handling, and dynamic prompt construction.
 - `src/orders_api.py`: FastAPI-based mock service for order status.
-- `src/rag.py`: Embedding pipeline, persistent Chroma store, and semantic KB retrieval.
-- `data/kb.txt`: Semantic Knowledge Base for policies (RAG source).
-- `data/orders.json`: Simulated database for order tracking.
+- `src/rag.py`: RAG initialization pipeline, chunking, embeddings, Chroma vector store persistence, and semantic KB retrieval.
+- `src/feedback.py`: Feedback persistence and prompt adaptation logic.
+- `src/tools.py`: Tool definitions such as `get_order_status`.
+- `src/app.py`: Streamlit dashboard UI and user interaction layer.
+- `data/kb.txt`: Semantic Knowledge Base for policies, shipping rules, refunds, and escalation guidance.
+- `data/orders.json`: Simulated order status data source.
+- `data/feedback.json`: Persistent feedback and tone preferences used by the agent.
+
+## 🏗️ Architecture & Reliability Patterns
+This project is designed for stability and grounded answers through a mix of deterministic routing, semantic retrieval, and fallback safety.
+
+- **RAG retrieval is built in `src/rag.py`.**
+  * Loads `data/kb.txt` and splits it with `RecursiveCharacterTextSplitter(chunk_size=200, chunk_overlap=50)`.
+  * Uses `GoogleGenerativeAIEmbeddings(model=config.rag.embeddings_model)` to embed chunks.
+  * Stores embeddings in Chroma and reloads the persisted store on startup.
+
+- **Tools are bound in `src/support_agent.py`.**
+  * `search_knowledge_base(query)` retrieves KB snippets via `self.retriever.invoke(query)`.
+  * `get_order_status` is imported from `src/tools.py` and used for order tracking.
+  * The agent binds these tools to the LLM with `self.llm.bind_tools(self.tools)`.
+
+- **Intent routing and tool selection happen before the agent loop.**
+  * Regex-based pre-routing handles status checks, KB queries, escalation, order-id recall, and non-receipt cases.
+  * Simple status/KB requests often bypass the full ReAct flow for speed and reliability.
+
+- **Prompt guardrails and feedback adaptation are enforced in `_build_dynamic_prompt()`.**
+  * The prompt includes safety rules, tool usage instructions, and the active order ID context.
+  * User feedback is injected as a critical tone-adaptation block via `FeedbackManager`.
+
+- **Recursive and fallback safety are built into `ask()`.**
+  * `recursion_limit=10` protects against runaway loops.
+  * If the agent fails or returns an unsafe response, `_safe_single_pass_response()` provides a safe answer.
+  * Tool errors are caught and returned as user-friendly explanations instead of crashing.
+
+- **Short-term memory is thread-scoped.**
+  * `self._thread_order_ids` tracks the active Order ID for each `thread_id`.
+  * Feedback persistence lives in `data/feedback.json` and survives restarts.
+
+- **UI and user flow.**
+  * `src/app.py` provides a Streamlit dashboard for users to ask questions and submit feedback.
+  * `src/agent.py` offers a command-line fallback interface with `clear` and `feedback:` commands.
 
 ## 🔍 Semantic Retrieval Pipeline
 The agent uses a retrieval-augmented pipeline to ground customer answers in the KB instead of relying on model memory.
