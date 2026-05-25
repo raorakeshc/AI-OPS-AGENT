@@ -38,5 +38,31 @@ streamlit run src/app.py
 - `src/agent.py`: Core logic for the `SupportAgent` class, LangGraph executor, and RAG setup.
 - `src/app.py`: Streamlit UI with custom CSS glassmorphism.
 - `src/orders_api.py`: FastAPI-based mock service for order status.
+- `src/rag.py`: Embedding pipeline, persistent Chroma store, and semantic KB retrieval.
 - `data/kb.txt`: Semantic Knowledge Base for policies (RAG source).
 - `data/orders.json`: Simulated database for order tracking.
+
+## 🔍 Semantic Retrieval Pipeline
+The agent uses a retrieval-augmented pipeline to ground customer answers in the KB instead of relying on model memory.
+
+Pipeline steps:
+1. Load `data/kb.txt`.
+2. Split content into overlapping chunks using `RecursiveCharacterTextSplitter`.
+3. Embed chunks with Google Gemini embeddings (`models/gemini-embedding-2`).
+4. Persist a local Chroma vector store in `data/chroma_store`.
+5. Reload the store on each startup to skip repeated embedding work.
+
+### Why this improves responses
+- Semantic retrieval finds the most relevant KB paragraphs for policy, returns, shipping, and refund questions.
+- It reduces hallucinations by returning exact knowledge-base text instead of guessing.
+- The persistent store makes repeated runs fast and efficient.
+
+### Example retrieval relevance
+- Query: `Can I return electronics after 20 days?`
+  - Retrieved snippet: `Electronics: Return within 15 days of delivery.`
+- Query: `What does Out for Delivery mean?`
+  - Retrieved snippet: `Out for Delivery: Package is expected to be delivered today.`
+- Query: `Can I cancel after my order is packed?`
+  - Retrieved snippet: `If status is Packed/Shipped/In Transit, cancellation is not possible.`
+
+These examples show how semantic retrieval surfaces concise KB facts and keeps answers grounded in documented policy.

@@ -26,6 +26,7 @@ class LLMConfig(BaseModel):
 class RAGConfig(BaseModel):
     """RAG (Retrieval-Augmented Generation) configuration."""
     kb_filepath: str = "data/kb.txt"
+    vectorstore_path: str = "data/chroma_store"
     chunk_size: int = 200
     chunk_overlap: int = 50
     embeddings_model: str = "models/gemini-embedding-2"
