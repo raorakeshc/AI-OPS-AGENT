@@ -7,6 +7,10 @@ from typing import Dict, Optional
 from fastapi import FastAPI, HTTPException, Header
 from pydantic import BaseModel, Field
 
+from .order_store import init_db, get_order_status, upsert_order, migrate_from_json, list_orders
+
+_db_conn = None
+
 
 APP_TITLE = "Orders Service"
 APP_VERSION = "1.0.0"
@@ -32,6 +36,7 @@ class MessageResponse(BaseModel):
 
 
 def _load_orders() -> Dict[str, str]:
+    # legacy helper kept for compatibility; prefer SQLite methods
     if not DATA_PATH.exists():
         return {}
     with DATA_PATH.open("r", encoding="utf-8") as file_obj:
@@ -42,6 +47,7 @@ def _load_orders() -> Dict[str, str]:
 
 
 def _save_orders(orders: Dict[str, str]) -> None:
+    # Legacy JSON persistence kept as a secondary store for small exports.
     DATA_PATH.parent.mkdir(parents=True, exist_ok=True)
     with DATA_PATH.open("w", encoding="utf-8") as file_obj:
         json.dump(orders, file_obj, indent=2)
@@ -66,13 +72,20 @@ def _validate_bearer(authorization: Optional[str]) -> None:
 
 @app.on_event("startup")
 def startup_initialize_seed_data() -> None:
-    if DATA_PATH.exists():
-        return
-    _save_orders({
-        "123": "Shipped",
-        "456": "In Transit",
-        "789": "Delivered",
-    })
+    global _db_conn
+    # Initialize SQLite DB and migrate any existing JSON seed data
+    _db_conn = init_db()
+    existing = list_orders(_db_conn)
+    if not existing:
+        migrated = migrate_from_json(_db_conn, DATA_PATH)
+        if migrated:
+            # keep JSON file for human-readability, but DB is now primary
+            pass
+        else:
+            # seed with defaults if nothing to migrate
+            upsert_order(_db_conn, "123", "Shipped")
+            upsert_order(_db_conn, "456", "In Transit")
+            upsert_order(_db_conn, "789", "Delivered")
 
 
 @app.get("/health", response_model=MessageResponse)
@@ -87,11 +100,8 @@ def get_order_by_path(
 ) -> OrderStatusResponse:
     _validate_bearer(authorization)
     normalized_order_id = _normalize_order_id(order_id)
-
     with _data_lock:
-        orders = _load_orders()
-
-    status = orders.get(normalized_order_id)
+        status = get_order_status(_db_conn, normalized_order_id)
     if not status:
         raise HTTPException(status_code=404, detail=f"Order {normalized_order_id} not found")
 
@@ -105,11 +115,8 @@ def get_order_by_query(
 ) -> OrderStatusResponse:
     _validate_bearer(authorization)
     normalized_order_id = _normalize_order_id(order_id)
-
     with _data_lock:
-        orders = _load_orders()
-
-    status = orders.get(normalized_order_id)
+        status = get_order_status(_db_conn, normalized_order_id)
     if not status:
         raise HTTPException(status_code=404, detail=f"Order {normalized_order_id} not found")
 
@@ -123,11 +130,10 @@ def create_or_upsert_order(
 ) -> OrderStatusResponse:
     _validate_bearer(authorization)
     normalized_order_id = _normalize_order_id(payload.order_id)
-
     with _data_lock:
-        orders = _load_orders()
-        orders[normalized_order_id] = payload.status
-        _save_orders(orders)
+        upsert_order(_db_conn, normalized_order_id, payload.status)
+        # also keep JSON export updated for humans/tools
+        _save_orders(list_orders(_db_conn))
 
     return OrderStatusResponse(order_id=normalized_order_id, status=payload.status)
 
@@ -146,11 +152,11 @@ def update_order_status(
         raise HTTPException(status_code=400, detail="Path order_id and payload order_id must match")
 
     with _data_lock:
-        orders = _load_orders()
-        if normalized_path_order_id not in orders:
+        existing = get_order_status(_db_conn, normalized_path_order_id)
+        if existing is None:
             raise HTTPException(status_code=404, detail=f"Order {normalized_path_order_id} not found")
-        orders[normalized_path_order_id] = payload.status
-        _save_orders(orders)
+        upsert_order(_db_conn, normalized_path_order_id, payload.status)
+        _save_orders(list_orders(_db_conn))
 
     return OrderStatusResponse(order_id=normalized_path_order_id, status=payload.status)
 
