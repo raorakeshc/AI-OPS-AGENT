@@ -8,7 +8,10 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
-from .config import get_config
+try:
+    from .config import get_config
+except ImportError:
+    from config import get_config
 
 
 def setup_rag(config: Any = None, retries: int = 3):

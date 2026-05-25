@@ -23,6 +23,8 @@ pyyaml>=6.0
 
 # Environment & Security
 python-dotenv>=1.0.0
+streamlit>=1.25.0
+altair>=5.0.0
 
 # Async Support
 aiofiles>=23.0.0

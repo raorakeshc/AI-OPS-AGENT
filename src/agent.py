@@ -4,7 +4,10 @@ import os
 import uuid
 import logging
 
-from .support_agent import SupportAgent
+try:
+    from .support_agent import SupportAgent
+except ImportError:
+    from support_agent import SupportAgent
 
 
 load_dotenv()

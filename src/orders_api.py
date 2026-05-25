@@ -194,4 +194,5 @@ def update_order_status(
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("orders_api:app", host="0.0.0.0", port=8081, reload=False)
+    port = int(os.getenv("ORDER_API_PORT", "8081"))
+    uvicorn.run("orders_api:app", host="0.0.0.0", port=port, reload=False)

@@ -11,9 +11,14 @@ from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.tools import tool
 from dotenv import load_dotenv
 
-from .feedback import FeedbackManager
-from .tools import get_order_status
-from .rag import setup_rag
+try:
+    from .feedback import FeedbackManager
+    from .tools import get_order_status
+    from .rag import setup_rag
+except ImportError:
+    from feedback import FeedbackManager
+    from tools import get_order_status
+    from rag import setup_rag
 
 
 class SupportAgent:

@@ -5,7 +5,7 @@ A production-grade AI support portal for logistics operations, featuring RAG-ena
 ## 🚀 Run Instructions
 
 ### 1. Environment Setup
-Create a `.env` file in the root directory with the following keys:
+Create a `.env` file in the root directory with the following keys, or copy `.env.example` and update it:
 ```env
 OPENAI_API_KEY=your_key_here
 GOOGLE_API_KEY=your_key_here
@@ -21,9 +21,9 @@ pip install -r requirements.txt
 ### 3. Start the Orders API (Backend)
 The agent relies on a mock REST API for order tracking.
 ```bash
-python src/orders_api.py
+ORDER_API_PORT=8081 python src/orders_api.py
 ```
-*Port: 8081*
+*Default port: 8081* (override with `ORDER_API_PORT` if the port is already in use)
 
 ### 4. Launch the AI-OPS Dashboard (Frontend)
 Run the Streamlit application to access the glassy portal.
