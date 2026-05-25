@@ -19,6 +19,28 @@ DATA_PATH = BASE_DIR / "data" / "orders.json"
 
 app = FastAPI(title=APP_TITLE, version=APP_VERSION)
 _data_lock = Lock()
+from .logging_config import configure_logging
+from .monitoring import MonitoringMiddleware, metrics, prometheus_asgi_app
+from .tracing import init_tracing
+
+# configure logging and tracing early
+configure_logging()
+# initialize tracing (OTLP/Jaeger/console fallback)
+tracer = init_tracing(service_name="orders-service")
+# auto-instrument FastAPI and requests if available
+try:
+    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+    from opentelemetry.instrumentation.requests import RequestsInstrumentor
+
+    FastAPIInstrumentor.instrument_app(app)
+    RequestsInstrumentor().instrument()
+except Exception:
+    pass
+
+# add monitoring middleware (ASGI-style)
+app.add_middleware(MonitoringMiddleware)
+# mount Prometheus metrics ASGI app at /metrics
+app.mount("/metrics", prometheus_asgi_app)
 
 
 class OrderRecord(BaseModel):
@@ -91,6 +113,8 @@ def startup_initialize_seed_data() -> None:
 @app.get("/health", response_model=MessageResponse)
 def health() -> MessageResponse:
     return MessageResponse(message="orders-api healthy")
+
+
 
 
 @app.get("/orders/{order_id}", response_model=OrderStatusResponse)
