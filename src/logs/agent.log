@@ -1,0 +1,5 @@
+2026-05-26 00:16:37,510 - WARNING - Warning: Failed to setup RAG Tool (Attempt 1/3). Error: Error loading data\kb.txt
+2026-05-26 00:16:39,512 - WARNING - Warning: Failed to setup RAG Tool (Attempt 2/3). Error: Error loading data\kb.txt
+2026-05-26 00:16:41,513 - WARNING - Warning: Failed to setup RAG Tool (Attempt 3/3). Error: Error loading data\kb.txt
+2026-05-26 00:16:41,513 - ERROR - RAG Retriever unavailable after retries.
+2026-05-26 00:16:41,535 - INFO - SupportAgent initialized successfully.

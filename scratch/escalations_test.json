@@ -1,0 +1,12 @@
+[
+  {
+    "ticket_id": "UBA-143-407",
+    "order_id": "143",
+    "reason": "User requested escalation / non-receipt",
+    "thread_id": "test_thread",
+    "details": {
+      "status": "delivered - left at front door"
+    },
+    "timestamp": 1779810407.6127985
+  }
+]

@@ -12,11 +12,13 @@ try:
     from .logging_config import configure_logging
     from .monitoring import MonitoringMiddleware, metrics, prometheus_asgi_app
     from .tracing import init_tracing
+    from .admin_memory import router as admin_memory_router
 except ImportError:
     from order_store import init_db, get_order_status, upsert_order, migrate_from_json, list_orders
     from logging_config import configure_logging
     from monitoring import MonitoringMiddleware, metrics, prometheus_asgi_app
     from tracing import init_tracing
+    from admin_memory import router as admin_memory_router
 
 _db_conn = None
 
@@ -47,6 +49,9 @@ except Exception:
 app.add_middleware(MonitoringMiddleware)
 # mount Prometheus metrics ASGI app at /metrics
 app.mount("/metrics", prometheus_asgi_app)
+
+# Register admin memory management endpoints (/admin/memory/reset, /admin/memory/list, /admin/feedback/audit)
+app.include_router(admin_memory_router)
 
 
 class OrderRecord(BaseModel):

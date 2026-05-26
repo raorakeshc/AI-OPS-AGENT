@@ -8,6 +8,15 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
+class SafeGoogleGenerativeAIEmbeddings(GoogleGenerativeAIEmbeddings):
+    """GoogleGenerativeAIEmbeddings wrapper that embeds documents sequentially.
+
+    This bypasses proxy/gateway issues where batch embedding calls only return the first element.
+    """
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        return [self.embed_query(text) for text in texts]
+
+
 try:
     from .config import get_config
 except ImportError:
@@ -30,16 +39,28 @@ def setup_rag(config: Any = None, retries: int = 3):
 
     for attempt in range(1, retries + 1):
         try:
+            vectorstore = None
             if persist_dir.exists() and any(persist_dir.iterdir()):
-                vectorstore = Chroma(
-                    collection_name="kb",
-                    persist_directory=str(persist_dir),
-                    embedding_function=GoogleGenerativeAIEmbeddings(
-                        model=config.rag.embeddings_model
-                    ),
-                )
-                logging.info("Loaded persisted RAG vector store from %s", persist_dir)
-            else:
+                try:
+                    vectorstore = Chroma(
+                        collection_name="knowledge_base",
+                        persist_directory=str(persist_dir),
+                        embedding_function=SafeGoogleGenerativeAIEmbeddings(
+                            model=config.rag.embeddings_model
+                        ),
+                    )
+                    # Test search to ensure collection is valid and not empty
+                    test_docs = vectorstore.similarity_search("test", k=1)
+                    if not test_docs:
+                        raise ValueError("Persisted vectorstore is empty.")
+                    logging.info("Successfully loaded persisted RAG vector store from %s", persist_dir)
+                except Exception as load_error:
+                    logging.warning("Persisted store is invalid or empty (%s). Rebuilding...", load_error)
+                    import shutil
+                    shutil.rmtree(persist_dir, ignore_errors=True)
+                    vectorstore = None
+
+            if vectorstore is None:
                 loader = TextLoader(str(kb_path))
                 docs = loader.load()
                 text_splitter = RecursiveCharacterTextSplitter(
@@ -48,14 +69,13 @@ def setup_rag(config: Any = None, retries: int = 3):
                 )
                 splits = text_splitter.split_documents(docs)
 
-                embeddings = GoogleGenerativeAIEmbeddings(model=config.rag.embeddings_model)
+                embeddings = SafeGoogleGenerativeAIEmbeddings(model=config.rag.embeddings_model)
                 vectorstore = Chroma.from_documents(
                     documents=splits,
                     embedding=embeddings,
-                    collection_name="kb",
+                    collection_name="knowledge_base",
                     persist_directory=str(persist_dir),
                 )
-                vectorstore.persist()
                 logging.info(
                     "Built and persisted RAG vector store at %s with %s chunks",
                     persist_dir,
@@ -71,6 +91,7 @@ def setup_rag(config: Any = None, retries: int = 3):
                 attempt,
                 retries,
                 error,
+                exc_info=True,
             )
             if attempt < retries:
                 time.sleep(2)
