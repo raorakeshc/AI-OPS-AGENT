@@ -8,7 +8,7 @@ A deployable AI support portal for logistics operations, featuring RAG-grounded 
 Copy `.env.example` to `.env` and update the runtime values.
 ```env
 OPENAI_API_KEY=your_key_here
-GOOGLE_API_KEY=your_key_here
+GEMINI_API_KEY=your_key_here
 ORDER_STATUS_API_URL=http://localhost:8081/orders/{order_id}
 ORDER_API_BEARER_TOKEN=demo_token_123
 ORDER_API_PORT=8081
@@ -16,6 +16,10 @@ ORDER_STATUS_TIMEOUT=8
 OPENAI_BASE_URL=https://openai.vocareum.com/v1
 LLM_MODEL=gpt-5.2
 LLM_TEMPERATURE=0
+
+LANGCHAIN_API_KEY= your_key_here
+LANGCHAIN_PROJECT="AI-OPS-AGENT"
+
 ```
 
 ### 2. Install Dependencies
